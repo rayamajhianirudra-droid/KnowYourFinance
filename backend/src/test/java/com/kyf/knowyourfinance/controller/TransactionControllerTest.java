@@ -98,6 +98,50 @@ class TransactionControllerTest {
     }
 
     @Test
+    void updatingAnExistingTransactionSavesTheChanges() throws Exception {
+        // The most common real reason to edit a transaction: fixing a
+        // category AutoCategorizer guessed wrong (build-log 02).
+        Transaction existing = new Transaction(
+                LocalDate.of(2026, 9, 2), "XZQ MERCHANT 991", new BigDecimal("12.00"),
+                TransactionType.EXPENSE, null, 1L);
+        when(transactionRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mockMvc.perform(put("/api/transactions/5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "date": "2026-09-02",
+                                  "description": "XZQ MERCHANT 991",
+                                  "amount": 12.00,
+                                  "type": "EXPENSE",
+                                  "category": "DINING",
+                                  "userId": 1
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.category").value("DINING"));
+    }
+
+    @Test
+    void updatingAMissingTransactionReturns404() throws Exception {
+        when(transactionRepository.findById(404L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(put("/api/transactions/404")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "date": "2026-09-02",
+                                  "description": "Anything",
+                                  "amount": 1.00,
+                                  "type": "EXPENSE",
+                                  "userId": 1
+                                }
+                                """))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void listReturnsTransactionsForUser() throws Exception {
         Transaction t = new Transaction(
                 LocalDate.of(2026, 9, 1), "PAYROLL DEPOSIT", new BigDecimal("2450.00"),

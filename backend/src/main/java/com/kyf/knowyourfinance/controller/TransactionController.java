@@ -83,6 +83,35 @@ public class TransactionController {
     }
 
     /**
+     * PUT /api/transactions/{id} - edit an existing transaction. The most
+     * common real-world reason for this: AutoCategorizer's keyword
+     * matching is good but not perfect (see build-log 02), so a user
+     * needs a way to fix a miscategorized transaction - or correct an
+     * amount/date they manually mistyped - without deleting and
+     * re-creating it.
+     *
+     * We only overwrite the fields that make sense to edit, reusing the
+     * existing Transaction object's `id` rather than trusting whatever
+     * the request body sent - the URL path is the source of truth for
+     * which row is being edited, not the body.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<Transaction> update(
+            @PathVariable Long id, @Valid @RequestBody Transaction updates) {
+        return transactionRepository.findById(id)
+                .map(existing -> {
+                    existing.setDate(updates.getDate());
+                    existing.setDescription(updates.getDescription());
+                    existing.setAmount(updates.getAmount());
+                    existing.setType(updates.getType());
+                    existing.setCategory(updates.getCategory());
+                    Transaction saved = transactionRepository.save(existing);
+                    return ResponseEntity.ok(saved);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
      * DELETE /api/transactions/{id} - remove a transaction (e.g. the user
      * fixes a duplicate or a miscategorized import).
      */

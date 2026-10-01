@@ -81,6 +81,22 @@ export async function addTransaction({ date, description, amount, type, category
 }
 
 /**
+ * Edits an existing transaction - most commonly used to fix a category
+ * AutoCategorizer guessed wrong, without deleting and re-adding the row.
+ */
+export async function updateTransaction(id, transaction) {
+  const response = await fetch(`${API_BASE}/transactions/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...transaction, userId: CURRENT_USER_ID }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update transaction (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
  * Lists every transaction for the current user, most recent logic
  * left to the backend/display layer (the API itself doesn't sort).
  */

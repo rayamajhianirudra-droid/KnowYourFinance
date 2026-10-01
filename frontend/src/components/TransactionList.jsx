@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { listTransactions } from "../api";
+import { listTransactions, updateTransaction } from "../api";
+
+const CATEGORIES = [
+  "GROCERIES", "DINING", "RENT_MORTGAGE", "UTILITIES", "SUBSCRIPTIONS",
+  "TRANSPORTATION", "SHOPPING", "ENTERTAINMENT", "HEALTHCARE", "EDUCATION",
+  "TRAVEL", "INCOME", "TRANSFER", "OTHER",
+];
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-US", {
@@ -10,14 +16,17 @@ function formatCurrency(amount) {
 
 /**
  * A plain list of every transaction on file for the user - the
- * "receipts" view behind the dashboard's summary numbers. Useful both
- * as a sanity check (does this match what I actually uploaded?) and as
- * a place to eventually add manual entry/editing.
+ * "receipts" view behind the dashboard's summary numbers. Also where a
+ * user fixes a transaction AutoCategorizer guessed wrong: the category
+ * cell is an editable dropdown rather than a label, since that's the
+ * single most common correction (an unusual merchant name landing in
+ * OTHER, or a keyword match that doesn't fit).
  */
 function TransactionList({ refreshKey }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [savingId, setSavingId] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -27,6 +36,23 @@ function TransactionList({ refreshKey }) {
       .finally(() => setLoading(false));
   }, [refreshKey]);
 
+  async function handleCategoryChange(transaction, newCategory) {
+    setSavingId(transaction.id);
+    try {
+      const updated = await updateTransaction(transaction.id, {
+        ...transaction,
+        category: newCategory,
+      });
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === updated.id ? updated : t))
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.date) - new Date(a.date)
   );
@@ -34,6 +60,10 @@ function TransactionList({ refreshKey }) {
   return (
     <section className="card">
       <h2>All transactions</h2>
+      <p className="muted">
+        Category guessed wrong? Pick the right one from the dropdown — it
+        saves immediately and updates your dashboard.
+      </p>
 
       {loading && <p className="muted">Loading...</p>}
       {error && <p className="error">{error}</p>}
@@ -60,7 +90,19 @@ function TransactionList({ refreshKey }) {
               <tr key={t.id}>
                 <td>{t.date}</td>
                 <td>{t.description}</td>
-                <td>{t.category ? t.category.replaceAll("_", " ") : "—"}</td>
+                <td>
+                  <select
+                    value={t.category ?? "OTHER"}
+                    disabled={savingId === t.id}
+                    onChange={(e) => handleCategoryChange(t, e.target.value)}
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td>
                   <span className={`badge ${t.type.toLowerCase()}`}>
                     {t.type}
