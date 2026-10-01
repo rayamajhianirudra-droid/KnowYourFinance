@@ -26,6 +26,11 @@ cd backend && mvn test
 
 ## What's still untested
 
-- The controllers themselves (`@WebMvcTest` / `MockMvc` would be the next layer)
 - `CsvStatementParser` and `StatementImportService` end-to-end (the whole upload pipeline, including the new duplicate-detection logic)
 - `TransactionRepository`'s derived queries against a real (even if in-memory H2) database — an `@DataJpaTest` would cover this
+
+## Addendum: controller-level tests
+
+`TransactionControllerTest` (`@WebMvcTest` + `MockMvc`) was added after the initial write-up above. Unlike the service-layer tests, this one goes through the real HTTP layer — real JSON parsing, real `@Valid` validation, real routing — without starting the full app or a database (`TransactionRepository` is still mocked via `@MockBean`).
+
+This is what actually proves `GlobalExceptionHandler` (build-log 04) works end-to-end: a request missing the required `amount` field is sent through `MockMvc`, and the test asserts the response is genuinely a 400 with the documented `{"message": "Validation failed", "fieldErrors": {"amount": ...}}` shape — not just that the handler class compiles, but that Spring actually wires it in front of a real validation failure.
