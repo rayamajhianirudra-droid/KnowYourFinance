@@ -1,0 +1,51 @@
+name: Backend CI
+
+# This workflow is what finally answers "does this code actually
+# compile and pass its tests?" - something that could NOT be verified
+# while building in a sandboxed environment with no access to Maven
+# Central (see docs/build-log/01-backend-foundations.md, section 9).
+# GitHub's own servers run this with full internet access, so every
+# dependency in pom.xml can actually be downloaded here.
+#
+# Runs automatically on every push and every pull request that touches
+# the backend - so compiler errors get caught immediately, without
+# anyone needing to run Maven on their own machine first.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Downloads the repo's code onto the runner - without this step
+      # there's nothing to build.
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Installs Java 21 (matching <java.version>21</java.version> in
+      # pom.xml) and sets Maven up to cache downloaded dependencies
+      # between runs, so this gets faster after the first time.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      # The actual moment of truth: `mvn verify` compiles every .java
+      # file and runs the full test suite (RedactionUtilTest,
+      # AutoCategorizerTest, DashboardServiceTest,
+      # TransactionControllerTest). If anything fails to compile, or any
+      # test fails, this step fails and the whole workflow shows red.
+      - name: Build and run tests
+        working-directory: backend
+        run: mvn -B verify
