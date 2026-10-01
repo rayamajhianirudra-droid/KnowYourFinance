@@ -29,12 +29,18 @@ import java.util.regex.Pattern;
 public final class RedactionUtil {
 
     /**
-     * Matches runs of 8 or more consecutive digits. US routing numbers
-     * are 9 digits; account numbers are typically 8-17 digits; card
-     * numbers are 13-19. Eight is a deliberately low floor - better to
-     * over-redact than under-redact.
+     * Matches 8-or-more-digit numbers, whether they're written as one
+     * unbroken run ("48217536901") or split up with single spaces or
+     * dashes ("4821-7536-901", "4821 7536 901") - the format real banks
+     * actually use to print account and card numbers. \b (a "word
+     * boundary") on each end stops this from accidentally swallowing a
+     * digit that's part of a longer alphanumeric token.
+     *
+     * US routing numbers are 9 digits; account numbers are typically
+     * 8-17 digits; card numbers are 13-19. Eight is a deliberately low
+     * floor - better to over-redact than under-redact.
      */
-    private static final Pattern LONG_DIGIT_RUN = Pattern.compile("\\d{8,}");
+    private static final Pattern LONG_DIGIT_RUN = Pattern.compile("\\b\\d(?:[ -]?\\d){7,}\\b");
 
     private RedactionUtil() {
         // utility class - never instantiated

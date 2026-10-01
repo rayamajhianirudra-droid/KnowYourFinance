@@ -71,4 +71,33 @@ class RedactionUtilTest {
         var eightDigits = RedactionUtil.redact("REF 12345678");
         assertTrue(eightDigits.isRedacted());
     }
+
+    @Test
+    void redactsAccountNumbersSplitUpWithDashes() {
+        // Real banks often print account/card numbers broken into
+        // groups like this instead of one unbroken digit run - the
+        // original regex (\d{8,}) would have missed this entirely.
+        var result = RedactionUtil.redact("CARD PAYMENT 4821-7536-9012");
+
+        assertTrue(result.isRedacted());
+        assertEquals("CARD PAYMENT [REDACTED]", result.getText());
+    }
+
+    @Test
+    void redactsAccountNumbersSplitUpWithSpaces() {
+        var result = RedactionUtil.redact("WIRE TRANSFER 4821 7536 9012");
+
+        assertTrue(result.isRedacted());
+        assertEquals("WIRE TRANSFER [REDACTED]", result.getText());
+    }
+
+    @Test
+    void leavesShortDashSeparatedReferencesAlone() {
+        // Only 6 digits total across the groups - under the threshold,
+        // so this should be left alone, same as a short store number.
+        var result = RedactionUtil.redact("REF 12-34-56");
+
+        assertFalse(result.isRedacted());
+        assertEquals("REF 12-34-56", result.getText());
+    }
 }
