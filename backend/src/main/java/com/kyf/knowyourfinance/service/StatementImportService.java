@@ -53,6 +53,7 @@ public class StatementImportService {
 
         List<Transaction> saved = new ArrayList<>();
         int redactedCount = 0;
+        int duplicateCount = 0;
 
         for (CsvStatementParser.ParsedRow row : parsedRows) {
             // Step 1 (security-critical): redact BEFORE this text is used
@@ -77,6 +78,18 @@ public class StatementImportService {
             TransactionType type = amount.signum() < 0 ? TransactionType.EXPENSE : TransactionType.INCOME;
             BigDecimal positiveAmount = amount.abs();
 
+            // Step 4 (duplicate protection): if this exact transaction already
+            // exists for this user, skip it instead of saving a second copy.
+            // Re-uploading the same statement (easy to do by accident - the
+            // file is just sitting in Downloads) should be harmless, not a
+            // source of doubled totals on the dashboard.
+            boolean alreadyExists = transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
+                    userId, row.getDate(), safeDescription, positiveAmount, type);
+            if (alreadyExists) {
+                duplicateCount++;
+                continue;
+            }
+
             Transaction transaction = new Transaction(
                     row.getDate(), safeDescription, positiveAmount, type, category, userId);
             saved.add(transactionRepository.save(transaction));
@@ -88,6 +101,6 @@ public class StatementImportService {
         // follow-up (see build-log 02).
 
         return new StatementImportResponse(
-                parsedRows.size(), saved.size(), redactedCount, rowsSkipped, saved);
+                parsedRows.size(), saved.size(), redactedCount, rowsSkipped, duplicateCount, saved);
     }
 }

@@ -69,6 +69,14 @@ function UploadStatement({ onImported }) {
                 automatically redacted.
               </>
             )}
+            {result.duplicatesSkipped > 0 && (
+              <>
+                {" "}
+                <strong>{result.duplicatesSkipped}</strong> row
+                {result.duplicatesSkipped === 1 ? "" : "s"} skipped as
+                duplicates already in your account.
+              </>
+            )}
           </p>
         </div>
       )}

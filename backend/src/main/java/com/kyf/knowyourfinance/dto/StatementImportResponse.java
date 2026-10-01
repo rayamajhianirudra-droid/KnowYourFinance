@@ -18,17 +18,19 @@ public class StatementImportResponse {
     private int transactionsSaved;
     private int rowsRedacted;
     private int rowsSkipped;
+    private int duplicatesSkipped;
     private List<Transaction> transactions;
 
     public StatementImportResponse() {
     }
 
     public StatementImportResponse(int rowsParsed, int transactionsSaved, int rowsRedacted,
-                                    int rowsSkipped, List<Transaction> transactions) {
+                                    int rowsSkipped, int duplicatesSkipped, List<Transaction> transactions) {
         this.rowsParsed = rowsParsed;
         this.transactionsSaved = transactionsSaved;
         this.rowsRedacted = rowsRedacted;
         this.rowsSkipped = rowsSkipped;
+        this.duplicatesSkipped = duplicatesSkipped;
         this.transactions = transactions;
     }
 
@@ -62,6 +64,14 @@ public class StatementImportResponse {
 
     public void setRowsSkipped(int rowsSkipped) {
         this.rowsSkipped = rowsSkipped;
+    }
+
+    public int getDuplicatesSkipped() {
+        return duplicatesSkipped;
+    }
+
+    public void setDuplicatesSkipped(int duplicatesSkipped) {
+        this.duplicatesSkipped = duplicatesSkipped;
     }
 
     public List<Transaction> getTransactions() {

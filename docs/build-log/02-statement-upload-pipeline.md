@@ -74,6 +74,7 @@ Returns:
   "transactionsSaved": 12,
   "rowsRedacted": 1,
   "rowsSkipped": 0,
+  "duplicatesSkipped": 0,
   "transactions": [ ... ]
 }
 ```
@@ -87,7 +88,19 @@ The uploaded file is read directly from memory via `MultipartFile.getInputStream
 - **PDF statements.** CSV only, for now. PDF support is a clean follow-up (add a PDF-text-extraction step in front of the same pipeline), not a rewrite — the parser's job is just to produce `ParsedRow`s from somewhere, and a PDF text extractor can do that just as well as the CSV reader does.
 - **Exact skipped-row reporting.** Noted above — currently a bad row just silently vanishes rather than being counted and reported.
 - **AI categorization.** `AutoCategorizer` is the seam; the method signature won't change when this is built.
-- **Duplicate-import detection.** Uploading the same statement twice today creates duplicate transactions. Worth a dedupe check (date + description + amount) before this goes further.
+
+## 7a. Duplicate-import protection (added after initial write-up)
+
+Uploading the same statement twice used to silently create duplicate transactions and double the dashboard's totals. Fixed with one new repository method:
+
+```java
+boolean existsByUserIdAndDateAndDescriptionAndAmountAndType(
+        Long userId, LocalDate date, String description, BigDecimal amount, TransactionType type);
+```
+
+Before saving each parsed row, `StatementImportService` now checks whether an identical transaction (same user, date, description, amount, type) already exists, and skips it instead of inserting a second copy. `StatementImportResponse` gained a `duplicatesSkipped` count so the upload screen can tell the user "3 rows skipped as duplicates" instead of silently under-counting what got imported.
+
+**Known limitation this doesn't solve:** if a statement genuinely contains two separate transactions identical in every tracked field (e.g. two $5 coffees on the same day with the same description), the second one is incorrectly treated as a duplicate and skipped. A more robust fix would track a per-row position/hash from the source file rather than relying on field equality — noted here rather than silently accepted.
 
 ## 8. Testing it without a real bank statement
 

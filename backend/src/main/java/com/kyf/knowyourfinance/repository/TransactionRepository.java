@@ -102,4 +102,17 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         com.kyf.knowyourfinance.model.TransactionCategory getCategory();
         BigDecimal getTotal();
     }
+
+    /**
+     * Powers duplicate-import detection (StatementImportService): if a
+     * transaction with this exact user/date/description/amount/type
+     * already exists, re-importing the same statement should skip it
+     * instead of creating a second copy. A derived query again - the
+     * method name alone tells Spring Data JPA the whole WHERE clause.
+     * `existsBy...` is more efficient than a `findBy...` here because it
+     * can stop as soon as it finds one match instead of loading a full
+     * Transaction.
+     */
+    boolean existsByUserIdAndDateAndDescriptionAndAmountAndType(
+            Long userId, LocalDate date, String description, BigDecimal amount, TransactionType type);
 }
