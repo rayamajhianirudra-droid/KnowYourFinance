@@ -63,10 +63,8 @@ public class TransactionController {
         if (start != null && end != null) {
             return transactionRepository.findByUserIdAndDateBetween(userId, start, end);
         }
-        // No range given: LocalDate.MIN/MAX acts as "from the beginning of time
-        // to the end of time," reusing the same range query instead of writing
-        // a second, near-identical repository method just for "no filter."
-        return transactionRepository.findByUserIdAndDateBetween(userId, LocalDate.MIN, LocalDate.MAX);
+        // No range given: return everything for this user.
+        return transactionRepository.findByUserId(userId);
     }
 
     /**

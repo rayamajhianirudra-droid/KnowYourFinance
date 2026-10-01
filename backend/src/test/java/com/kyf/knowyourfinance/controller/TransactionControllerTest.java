@@ -142,14 +142,39 @@ class TransactionControllerTest {
     }
 
     @Test
-    void listReturnsTransactionsForUser() throws Exception {
+    void listWithNoDateRangeReturnsEveryTransactionForUser() throws Exception {
+        // This is the "Transactions" tab's request: userId only, no
+        // start/end. It must go through findByUserId - a previous bug
+        // used findByUserIdAndDateBetween(userId, LocalDate.MIN,
+        // LocalDate.MAX) as a stand-in for "no filter," but MIN/MAX are
+        // years far outside what a database DATE column can hold, so
+        // that version silently returned nothing. Mocking
+        // findByUserIdAndDateBetween here (instead of findByUserId)
+        // would make this test pass even with that bug back in place,
+        // so it deliberately only stubs findByUserId.
         Transaction t = new Transaction(
                 LocalDate.of(2026, 9, 1), "PAYROLL DEPOSIT", new BigDecimal("2450.00"),
                 TransactionType.INCOME, null, 1L);
-        when(transactionRepository.findByUserIdAndDateBetween(any(), any(), any()))
-                .thenReturn(List.of(t));
+        when(transactionRepository.findByUserId(1L)).thenReturn(List.of(t));
 
         mockMvc.perform(get("/api/transactions").param("userId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].description").value("PAYROLL DEPOSIT"));
+    }
+
+    @Test
+    void listWithDateRangeUsesTheRangeQuery() throws Exception {
+        Transaction t = new Transaction(
+                LocalDate.of(2026, 9, 1), "PAYROLL DEPOSIT", new BigDecimal("2450.00"),
+                TransactionType.INCOME, null, 1L);
+        when(transactionRepository.findByUserIdAndDateBetween(
+                        1L, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30)))
+                .thenReturn(List.of(t));
+
+        mockMvc.perform(get("/api/transactions")
+                        .param("userId", "1")
+                        .param("start", "2026-09-01")
+                        .param("end", "2026-09-30"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].description").value("PAYROLL DEPOSIT"));
     }

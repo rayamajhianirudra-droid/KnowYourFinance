@@ -42,6 +42,17 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByUserIdAndDateBetween(Long userId, LocalDate start, LocalDate end);
 
     /**
+     * Every transaction for a user, no date filter at all. This exists
+     * separately from findByUserIdAndDateBetween because reusing that
+     * query with LocalDate.MIN/LocalDate.MAX as fake "no filter" bounds
+     * doesn't actually work: those values represent the years
+     * -999999999 and +999999999, far outside what a database DATE
+     * column can store, so the BETWEEN comparison silently matches
+     * nothing instead of everything.
+     */
+    List<Transaction> findByUserId(Long userId);
+
+    /**
      * Same idea, but also filtering by INCOME vs EXPENSE. Useful for
      * "total income this month" vs "total expenses this month" separately,
      * rather than fetching everything and splitting it apart in Java.
