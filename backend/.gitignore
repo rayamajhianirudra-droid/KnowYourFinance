@@ -1,0 +1,16 @@
+# Maven build output - regenerated every build, never commit it
+target/
+
+# IDE-specific files - everyone's editor setup differs, keep it out of the repo
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS junk
+.DS_Store
+
+# Logs
+*.log
