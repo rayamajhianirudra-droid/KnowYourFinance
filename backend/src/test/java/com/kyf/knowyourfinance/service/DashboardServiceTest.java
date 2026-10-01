@@ -28,6 +28,14 @@ import static org.mockito.Mockito.when;
  * "does the math work" completely separately from "does the database
  * query work."
  *
+ * DashboardService now also builds a report for the PREVIOUS month
+ * (feeding InsightsService), so every test here has to stub that
+ * second month's queries too - not just the "current" one being
+ * asserted on. InsightsService itself is wired in for real rather than
+ * mocked, same reasoning as StatementImportServiceTest wiring in real
+ * CsvStatementParser/AutoCategorizer: it's pure, dependency-free logic,
+ * so faking it would only hide bugs instead of catching them.
+ *
  * @ExtendWith(MockitoExtension.class) is what turns on Mockito's
  * annotation processing (@Mock) for this test class - without it, the
  * @Mock field below would just be null.
@@ -38,11 +46,17 @@ class DashboardServiceTest {
     @Mock
     private TransactionRepository transactionRepository;
 
+    private DashboardService dashboardService() {
+        return new DashboardService(transactionRepository, new InsightsService());
+    }
+
     @Test
     void calculatesNetSavingsAsIncomeMinusExpenses() {
         Long userId = 1L;
         LocalDate start = LocalDate.of(2026, 9, 1);
         LocalDate end = LocalDate.of(2026, 9, 30);
+        LocalDate previousStart = LocalDate.of(2026, 8, 1);
+        LocalDate previousEnd = LocalDate.of(2026, 8, 31);
 
         // "when the repository is asked for income in this exact range,
         // pretend it found $2450" - this is the core trick of mocking:
@@ -57,8 +71,16 @@ class DashboardServiceTest {
         when(transactionRepository.sumExpensesByCategory(eq(userId), eq(start), eq(end)))
                 .thenReturn(List.of());
 
-        DashboardService dashboardService = new DashboardService(transactionRepository);
-        MonthlyReportResponse report = dashboardService.getMonthlyReport(userId, 2026, 9);
+        // Last month's (August's) numbers - only here so InsightsService
+        // has something to compare against; this test doesn't assert on
+        // them, so they're just zeroed out.
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), any(), eq(previousStart), eq(previousEnd)))
+                .thenReturn(BigDecimal.ZERO);
+        when(transactionRepository.sumExpensesByCategory(eq(userId), eq(previousStart), eq(previousEnd)))
+                .thenReturn(List.of());
+
+        MonthlyReportResponse report = dashboardService().getMonthlyReport(userId, 2026, 9);
 
         assertEquals(new BigDecimal("2450.00"), report.getTotalIncome());
         assertEquals(new BigDecimal("1561.66"), report.getTotalExpenses());
@@ -81,8 +103,7 @@ class DashboardServiceTest {
         when(transactionRepository.sumExpensesByCategory(eq(userId), any(), any()))
                 .thenReturn(List.of(groceries, dining));
 
-        DashboardService dashboardService = new DashboardService(transactionRepository);
-        MonthlyReportResponse report = dashboardService.getMonthlyReport(userId, 2026, 9);
+        MonthlyReportResponse report = dashboardService().getMonthlyReport(userId, 2026, 9);
 
         assertEquals(2, report.getCategoryBreakdown().size());
         assertEquals(TransactionCategory.GROCERIES, report.getCategoryBreakdown().get(0).getCategory());
@@ -102,10 +123,31 @@ class DashboardServiceTest {
         when(transactionRepository.sumExpensesByCategory(eq(userId), any(), any()))
                 .thenReturn(List.of());
 
-        DashboardService dashboardService = new DashboardService(transactionRepository);
-        MonthlyReportResponse report = dashboardService.getMonthlyReport(userId, 2026, 3);
+        MonthlyReportResponse report = dashboardService().getMonthlyReport(userId, 2026, 3);
 
         assertEquals(new BigDecimal("-200.00"), report.getNetSavings());
+    }
+
+    @Test
+    void trendsReturnsOneSummaryPerMonthOldestFirst() {
+        Long userId = 1L;
+
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.INCOME), any(), any()))
+                .thenReturn(new BigDecimal("1000.00"));
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.EXPENSE), any(), any()))
+                .thenReturn(new BigDecimal("400.00"));
+
+        var trends = dashboardService().getTrends(userId, 2026, 9, 3);
+
+        // monthsBack=3 ending at September 2026 -> July, August, September,
+        // in that order, so a chart can read the list left to right.
+        assertEquals(3, trends.size());
+        assertEquals(7, trends.get(0).getMonth());
+        assertEquals(8, trends.get(1).getMonth());
+        assertEquals(9, trends.get(2).getMonth());
+        assertEquals(new BigDecimal("600.00"), trends.get(2).getNetSavings());
     }
 
     /**

@@ -1,11 +1,14 @@
 package com.kyf.knowyourfinance.controller;
 
 import com.kyf.knowyourfinance.dto.MonthlyReportResponse;
+import com.kyf.knowyourfinance.dto.MonthlySummary;
 import com.kyf.knowyourfinance.service.DashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * The dashboard-facing endpoints. This controller is intentionally thin -
@@ -40,5 +43,22 @@ public class DashboardController {
             @RequestParam int year,
             @RequestParam int month) {
         return dashboardService.getMonthlyReport(userId, year, month);
+    }
+
+    /**
+     * GET /api/dashboard/trends?userId=1&year=2026&month=10&monthsBack=6
+     *
+     * Returns one summary per month for a trailing window of months
+     * (defaulting to the last 6), ending at the given year/month -
+     * powers the "spending trends over time" chart, which shows several
+     * months side by side instead of one at a time.
+     */
+    @GetMapping("/trends")
+    public List<MonthlySummary> trends(
+            @RequestParam Long userId,
+            @RequestParam int year,
+            @RequestParam int month,
+            @RequestParam(defaultValue = "6") int monthsBack) {
+        return dashboardService.getTrends(userId, year, month, monthsBack);
     }
 }

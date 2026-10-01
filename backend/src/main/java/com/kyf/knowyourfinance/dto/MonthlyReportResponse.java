@@ -4,6 +4,7 @@ import com.kyf.knowyourfinance.model.TransactionCategory;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * A DTO ("Data Transfer Object") is a plain class whose only job is to
@@ -26,6 +27,12 @@ public class MonthlyReportResponse {
     private BigDecimal totalExpenses;
     private BigDecimal netSavings;
     private List<CategoryBreakdownItem> categoryBreakdown;
+    // Plain-English, auto-generated takeaways about this month, built by
+    // comparing it against the previous month (see InsightsService) -
+    // e.g. "Your spending is up 18% compared to last month." Defaults to
+    // an empty list (never null) so the frontend never has to null-check
+    // before mapping over it.
+    private List<String> insights = new ArrayList<>();
 
     public MonthlyReportResponse() {
     }
@@ -87,6 +94,14 @@ public class MonthlyReportResponse {
 
     public void setCategoryBreakdown(List<CategoryBreakdownItem> categoryBreakdown) {
         this.categoryBreakdown = categoryBreakdown;
+    }
+
+    public List<String> getInsights() {
+        return insights;
+    }
+
+    public void setInsights(List<String> insights) {
+        this.insights = insights;
     }
 
     /**

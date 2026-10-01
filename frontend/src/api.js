@@ -56,6 +56,21 @@ export async function getMonthlyReport(year, month) {
 }
 
 /**
+ * Fetches several months of income/expense totals in one call - the
+ * "spending trends over time" chart. monthsBack defaults to 6 on the
+ * backend if not passed.
+ */
+export async function getTrends(year, month, monthsBack = 6) {
+  const response = await fetch(
+    `${API_BASE}/dashboard/trends?userId=${CURRENT_USER_ID}&year=${year}&month=${month}&monthsBack=${monthsBack}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to load trends (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
  * Adds a single transaction by hand - the path for cash spending (or
  * any income/expense with no statement line to parse). Hits the same
  * Transaction table statement uploads do, so it shows up in the

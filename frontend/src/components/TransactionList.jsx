@@ -1,18 +1,12 @@
 import { useEffect, useState } from "react";
 import { listTransactions, updateTransaction } from "../api";
+import { formatCurrency } from "../utils/format";
 
 const CATEGORIES = [
   "GROCERIES", "DINING", "RENT_MORTGAGE", "UTILITIES", "SUBSCRIPTIONS",
   "TRANSPORTATION", "SHOPPING", "ENTERTAINMENT", "HEALTHCARE", "EDUCATION",
   "TRAVEL", "INCOME", "TRANSFER", "OTHER",
 ];
-
-function formatCurrency(amount) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number(amount));
-}
 
 /**
  * A plain list of every transaction on file for the user - the
