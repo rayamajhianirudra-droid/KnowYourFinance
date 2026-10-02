@@ -18,7 +18,17 @@ docs/       build-log/ — plain-language documentation of every decision made, 
 
 ## Running it locally
 
-One command starts both the backend and the frontend:
+The backend connects to a shared Supabase (hosted PostgreSQL) database, so before running it for the first time, set three environment variables with your database credentials:
+
+```bash
+export SPRING_DATASOURCE_URL="jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:5432/postgres"
+export SPRING_DATASOURCE_USERNAME="postgres.nmivkmwsxdbszuzbldyp"
+export SPRING_DATASOURCE_PASSWORD="<ask a teammate, or get it from Supabase: Project Settings > Database > Reset database password>"
+```
+
+Put these in your shell profile (or an `.env` file your terminal loads) so you don't have to retype them every session. **Never commit the password** — it's a secret, not code, which is exactly why it's an environment variable instead of a line in `application.properties`.
+
+Once those are set, one command starts both the backend and the frontend:
 
 ```bash
 ./start.sh
@@ -43,9 +53,7 @@ cd frontend
 npm run dev
 ```
 
-Note that neither of these runs as a background service. Shutting down or restarting your computer stops both processes, same as closing any other program, so you'll need to run `./start.sh` again next time. That's expected. It's separate from data persistence, which is handled on its own (see the build log on persistent storage) and survives restarts just fine.
-
-H2's web console (dev-only database viewer) is available at `http://localhost:8080/h2-console` while the backend is running.
+Note that neither of these runs as a background service. Shutting down or restarting your computer stops both processes, same as closing any other program, so you'll need to run `./start.sh` again next time. That's expected, and it has nothing to do with data persistence — the data now lives in Supabase, not on your machine, so it survives whether or not the backend is running.
 
 ## Core features
 

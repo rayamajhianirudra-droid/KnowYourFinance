@@ -25,8 +25,9 @@ import static org.mockito.Mockito.when;
  * learning notes doc promised would be easy: DashboardService doesn't
  * touch a real database, it only calls methods on TransactionRepository
  * - so here we hand it a FAKE repository (a Mockito mock) that returns
- * made-up numbers instead of hitting H2. That's the whole point of
- * splitting service logic out from the repository layer: we can test
+ * made-up numbers instead of hitting the real Postgres database. That's
+ * the whole point of splitting service logic out from the repository
+ * layer: we can test
  * "does the math work" completely separately from "does the database
  * query work."
  *
