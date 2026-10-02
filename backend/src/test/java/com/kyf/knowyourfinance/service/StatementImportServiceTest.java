@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -180,6 +181,29 @@ class StatementImportServiceTest {
         Transaction saved = response.getTransactions().get(0);
         assertEquals(TransactionCategory.OTHER, saved.getCategory());
         assertEquals(true, saved.isLowConfidence());
+    }
+
+    @Test
+    void previewModeReturnsWhatWouldBeSavedWithoutActuallySavingIt() throws IOException {
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-01,PAYROLL DEPOSIT,2450.00
+                2026-09-02,STARBUCKS #4521,-5.75
+                """;
+
+        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
+                any(), any(), any(), any(), any())).thenReturn(false);
+
+        // persist = false: the preview path. Note save() is never stubbed
+        // at all here - if the service called it, Mockito would return
+        // null and this test would fail with a NullPointerException,
+        // which is exactly the point.
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L, false);
+
+        assertEquals(2, response.getRowsParsed());
+        assertEquals(2, response.getTransactionsSaved());
+        assertEquals(2, response.getTransactions().size());
+        verify(transactionRepository, never()).save(any());
     }
 
     @Test

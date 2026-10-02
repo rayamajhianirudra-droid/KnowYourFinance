@@ -26,6 +26,20 @@ public class MonthlyReportResponse {
     private BigDecimal totalIncome;
     private BigDecimal totalExpenses;
     private BigDecimal netSavings;
+    // The same three totals, but for the period immediately before this
+    // one (last month, for a calendar-month report; an equal-length
+    // preceding window, for a custom date-range report). This is what
+    // lets the frontend show a real "up 8% from last month" on a stat
+    // card instead of just the raw number with nothing to compare it to.
+    private BigDecimal previousTotalIncome;
+    private BigDecimal previousTotalExpenses;
+    private BigDecimal previousNetSavings;
+    // True only when the previous period actually has some transaction
+    // history - a true-but-contentless "0% change" comparison against an
+    // empty, not-yet-used period would be misleading rather than useful,
+    // so the frontend uses this to decide whether to show a comparison
+    // at all.
+    private boolean previousPeriodHasData;
     private List<CategoryBreakdownItem> categoryBreakdown;
     // Plain-English, auto-generated takeaways about this month, built by
     // comparing it against the previous month (see InsightsService) -
@@ -86,6 +100,38 @@ public class MonthlyReportResponse {
 
     public void setNetSavings(BigDecimal netSavings) {
         this.netSavings = netSavings;
+    }
+
+    public BigDecimal getPreviousTotalIncome() {
+        return previousTotalIncome;
+    }
+
+    public void setPreviousTotalIncome(BigDecimal previousTotalIncome) {
+        this.previousTotalIncome = previousTotalIncome;
+    }
+
+    public BigDecimal getPreviousTotalExpenses() {
+        return previousTotalExpenses;
+    }
+
+    public void setPreviousTotalExpenses(BigDecimal previousTotalExpenses) {
+        this.previousTotalExpenses = previousTotalExpenses;
+    }
+
+    public BigDecimal getPreviousNetSavings() {
+        return previousNetSavings;
+    }
+
+    public void setPreviousNetSavings(BigDecimal previousNetSavings) {
+        this.previousNetSavings = previousNetSavings;
+    }
+
+    public boolean isPreviousPeriodHasData() {
+        return previousPeriodHasData;
+    }
+
+    public void setPreviousPeriodHasData(boolean previousPeriodHasData) {
+        this.previousPeriodHasData = previousPeriodHasData;
     }
 
     public List<CategoryBreakdownItem> getCategoryBreakdown() {

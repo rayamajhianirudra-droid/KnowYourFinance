@@ -14,6 +14,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -148,6 +150,92 @@ class DashboardServiceTest {
         assertEquals(8, trends.get(1).getMonth());
         assertEquals(9, trends.get(2).getMonth());
         assertEquals(new BigDecimal("600.00"), trends.get(2).getNetSavings());
+    }
+
+    @Test
+    void reportsThePreviousMonthsTotalsForComparison() {
+        Long userId = 1L;
+        LocalDate start = LocalDate.of(2026, 9, 1);
+        LocalDate end = LocalDate.of(2026, 9, 30);
+        LocalDate previousStart = LocalDate.of(2026, 8, 1);
+        LocalDate previousEnd = LocalDate.of(2026, 8, 31);
+
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.INCOME), eq(start), eq(end)))
+                .thenReturn(new BigDecimal("2450.00"));
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.EXPENSE), eq(start), eq(end)))
+                .thenReturn(new BigDecimal("1561.66"));
+        when(transactionRepository.sumExpensesByCategory(eq(userId), eq(start), eq(end)))
+                .thenReturn(List.of());
+
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.INCOME), eq(previousStart), eq(previousEnd)))
+                .thenReturn(new BigDecimal("2000.00"));
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.EXPENSE), eq(previousStart), eq(previousEnd)))
+                .thenReturn(new BigDecimal("1800.00"));
+        when(transactionRepository.sumExpensesByCategory(eq(userId), eq(previousStart), eq(previousEnd)))
+                .thenReturn(List.of());
+
+        MonthlyReportResponse report = dashboardService().getMonthlyReport(userId, 2026, 9);
+
+        assertEquals(new BigDecimal("2000.00"), report.getPreviousTotalIncome());
+        assertEquals(new BigDecimal("1800.00"), report.getPreviousTotalExpenses());
+        assertEquals(new BigDecimal("200.00"), report.getPreviousNetSavings());
+        assertTrue(report.isPreviousPeriodHasData());
+    }
+
+    @Test
+    void doesNotClaimAComparisonWhenThePreviousPeriodHasNoData() {
+        Long userId = 1L;
+
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(any(), any(), any(), any()))
+                .thenReturn(BigDecimal.ZERO);
+        when(transactionRepository.sumExpensesByCategory(any(), any(), any()))
+                .thenReturn(List.of());
+
+        MonthlyReportResponse report = dashboardService().getMonthlyReport(userId, 2026, 9);
+
+        assertFalse(report.isPreviousPeriodHasData());
+    }
+
+    @Test
+    void reportForRangeComparesAgainstAnEqualLengthPrecedingWindow() {
+        Long userId = 1L;
+        LocalDate start = LocalDate.of(2026, 9, 10);
+        LocalDate end = LocalDate.of(2026, 9, 19); // 10-day range
+        LocalDate previousStart = LocalDate.of(2026, 8, 31); // 10 days before start
+        LocalDate previousEnd = LocalDate.of(2026, 9, 9);
+
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.INCOME), eq(start), eq(end)))
+                .thenReturn(new BigDecimal("500.00"));
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.EXPENSE), eq(start), eq(end)))
+                .thenReturn(new BigDecimal("300.00"));
+        when(transactionRepository.sumExpensesByCategory(eq(userId), eq(start), eq(end)))
+                .thenReturn(List.of());
+
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.INCOME), eq(previousStart), eq(previousEnd)))
+                .thenReturn(new BigDecimal("400.00"));
+        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
+                eq(userId), eq(TransactionType.EXPENSE), eq(previousStart), eq(previousEnd)))
+                .thenReturn(new BigDecimal("250.00"));
+        when(transactionRepository.sumExpensesByCategory(eq(userId), eq(previousStart), eq(previousEnd)))
+                .thenReturn(List.of());
+
+        MonthlyReportResponse report = dashboardService().getReportForRange(userId, start, end);
+
+        assertEquals(new BigDecimal("500.00"), report.getTotalIncome());
+        assertEquals(new BigDecimal("200.00"), report.getNetSavings());
+        assertEquals(new BigDecimal("400.00"), report.getPreviousTotalIncome());
+        assertEquals(new BigDecimal("150.00"), report.getPreviousNetSavings());
+        assertTrue(report.isPreviousPeriodHasData());
+        // Range reports don't get the calendar-month insight sentences -
+        // see DashboardService.getReportForRange's class comment.
+        assertEquals(0, report.getInsights().size());
     }
 
     /**

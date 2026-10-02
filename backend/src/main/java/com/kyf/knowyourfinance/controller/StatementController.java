@@ -44,16 +44,28 @@ public class StatementController {
      * and testable; PDF becomes "add a PDF-to-text step in front of the
      * same pipeline" rather than a rewrite.
      */
+    /**
+     * `preview` (default false) runs the exact same pipeline - parse,
+     * redact, categorize, duplicate-check - without saving anything, so
+     * the frontend can show the user what an import WOULD do (row
+     * count, date range, totals) and let them confirm before it's
+     * final. The frontend calls this endpoint twice for one real
+     * import: once with preview=true to show that confirmation screen,
+     * then again with preview=false (or omitted) once the user
+     * confirms.
+     */
     @PostMapping("/upload")
     public ResponseEntity<StatementImportResponse> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam Long userId) throws IOException {
+            @RequestParam Long userId,
+            @RequestParam(defaultValue = "false") boolean preview) throws IOException {
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
-        StatementImportResponse response = statementImportService.importCsv(file.getInputStream(), userId);
+        StatementImportResponse response =
+                statementImportService.importCsv(file.getInputStream(), userId, !preview);
         return ResponseEntity.ok(response);
     }
 }

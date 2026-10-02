@@ -49,6 +49,20 @@ public class StatementImportService {
     }
 
     public StatementImportResponse importCsv(InputStream csvInputStream, Long userId) throws IOException {
+        return importCsv(csvInputStream, userId, true);
+    }
+
+    /**
+     * Same pipeline as above, but with persistence made optional
+     * (`persist = false`). This is what powers the "preview before you
+     * save" screen: the upload runs all the way through parsing,
+     * redaction, and categorization - so the preview shows the user
+     * EXACTLY what would be saved, not a rough guess - it just stops
+     * short of the actual transactionRepository.save() call. The
+     * duplicate check still runs during a preview (read-only, so it's
+     * safe), so the preview's duplicate count is accurate too.
+     */
+    public StatementImportResponse importCsv(InputStream csvInputStream, Long userId, boolean persist) throws IOException {
         CsvStatementParser.ParseResult parseResult = csvStatementParser.parse(csvInputStream);
         List<CsvStatementParser.ParsedRow> parsedRows = parseResult.getRows();
 
@@ -99,7 +113,7 @@ public class StatementImportService {
             // guess rather than a real keyword match, so the frontend can
             // show the user which ones are worth a second look.
             transaction.setLowConfidence(categorization.isLowConfidence());
-            saved.add(transactionRepository.save(transaction));
+            saved.add(persist ? transactionRepository.save(transaction) : transaction);
         }
 
         return new StatementImportResponse(

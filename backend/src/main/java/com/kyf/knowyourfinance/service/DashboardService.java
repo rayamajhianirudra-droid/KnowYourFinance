@@ -62,15 +62,74 @@ public class DashboardService {
         MonthlyReportResponse previous =
                 buildReport(userId, previousMonth.getYear(), previousMonth.getMonthValue());
 
+        applyPreviousPeriod(current, previous);
         current.setInsights(insightsService.generate(current, previous));
         return current;
     }
 
+    /**
+     * The "Custom date range" dashboard option: the same report shape as
+     * getMonthlyReport, but for an arbitrary start/end instead of a
+     * calendar month. The comparison period is an equal-length window
+     * immediately before the requested range, so a 10-day range gets
+     * compared against the 10 days before it, not an unrelated calendar
+     * month.
+     *
+     * No insights sentences here - InsightsService's wording ("up 18%
+     * compared to last month") is written for calendar months, and
+     * reusing it for an arbitrary range would misstate what it's
+     * comparing. The raw numbers (including the previous-period ones)
+     * are still returned, so the frontend's stat cards still get a real
+     * comparison - they just don't get an auto-generated sentence.
+     */
+    public MonthlyReportResponse getReportForRange(Long userId, LocalDate start, LocalDate end) {
+        MonthlyReportResponse current = buildReportForRange(userId, start, end);
+
+        long daysInRange = java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1;
+        LocalDate previousEnd = start.minusDays(1);
+        LocalDate previousStart = previousEnd.minusDays(daysInRange - 1);
+        MonthlyReportResponse previous = buildReportForRange(userId, previousStart, previousEnd);
+
+        applyPreviousPeriod(current, previous);
+        return current;
+    }
+
+    /**
+     * Copies the previous period's totals onto the current report and
+     * decides whether that comparison is worth showing at all - a
+     * previous period with literally nothing recorded in it (income,
+     * expenses, and net savings all zero) almost certainly just means
+     * there's no history there yet, not that spending genuinely dropped
+     * to zero, so the frontend is told not to present that as a real
+     * comparison.
+     */
+    private void applyPreviousPeriod(MonthlyReportResponse current, MonthlyReportResponse previous) {
+        current.setPreviousTotalIncome(previous.getTotalIncome());
+        current.setPreviousTotalExpenses(previous.getTotalExpenses());
+        current.setPreviousNetSavings(previous.getNetSavings());
+        boolean hasData = previous.getTotalIncome().signum() != 0
+                || previous.getTotalExpenses().signum() != 0;
+        current.setPreviousPeriodHasData(hasData);
+    }
+
     private MonthlyReportResponse buildReport(Long userId, int year, int month) {
         YearMonth yearMonth = YearMonth.of(year, month);
-        LocalDate start = yearMonth.atDay(1);
-        LocalDate end = yearMonth.atEndOfMonth();
+        MonthlyReportResponse report = buildReportForRange(
+                userId, yearMonth.atDay(1), yearMonth.atEndOfMonth());
+        report.setYear(year);
+        report.setMonth(month);
+        return report;
+    }
 
+    /**
+     * The actual totals-and-breakdown calculation, for any start/end
+     * date range - a calendar month is just one particular range.
+     * year/month on the returned response are left at their default (0)
+     * here; buildReport() fills them in for the calendar-month case,
+     * and a range report simply doesn't use them (the frontend already
+     * knows the start/end it asked for).
+     */
+    private MonthlyReportResponse buildReportForRange(Long userId, LocalDate start, LocalDate end) {
         var totalIncome = transactionRepository.sumAmountByUserAndTypeAndDateRange(
                 userId, TransactionType.INCOME, start, end);
         var totalExpenses = transactionRepository.sumAmountByUserAndTypeAndDateRange(
@@ -83,7 +142,7 @@ public class DashboardService {
                                 row.getCategory(), row.getTotal()))
                         .toList();
 
-        return new MonthlyReportResponse(year, month, totalIncome, totalExpenses, netSavings, breakdown);
+        return new MonthlyReportResponse(0, 0, totalIncome, totalExpenses, netSavings, breakdown);
     }
 
     /**

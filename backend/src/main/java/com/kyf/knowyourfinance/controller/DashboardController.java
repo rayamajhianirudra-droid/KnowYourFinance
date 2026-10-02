@@ -3,11 +3,13 @@ package com.kyf.knowyourfinance.controller;
 import com.kyf.knowyourfinance.dto.MonthlyReportResponse;
 import com.kyf.knowyourfinance.dto.MonthlySummary;
 import com.kyf.knowyourfinance.service.DashboardService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -43,6 +45,21 @@ public class DashboardController {
             @RequestParam int year,
             @RequestParam int month) {
         return dashboardService.getMonthlyReport(userId, year, month);
+    }
+
+    /**
+     * GET /api/dashboard/report-range?userId=1&start=2026-09-01&end=2026-09-15
+     *
+     * The same report shape as /report, but for an arbitrary date range
+     * instead of a whole calendar month - this is what the dashboard's
+     * "Custom date range" period option calls.
+     */
+    @GetMapping("/report-range")
+    public MonthlyReportResponse reportForRange(
+            @RequestParam Long userId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        return dashboardService.getReportForRange(userId, start, end);
     }
 
     /**
