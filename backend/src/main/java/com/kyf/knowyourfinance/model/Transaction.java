@@ -105,6 +105,24 @@ public class Transaction {
     private Long userId;
 
     /**
+     * True when this transaction's category was auto-assigned with
+     * confidence below AutoCategorizer's 0.70 threshold (FR-303) -
+     * meaning it landed in OTHER (or wherever it landed) as a guess,
+     * not a real keyword match. The frontend uses this to show a small
+     * "auto-guessed" marker so the user knows which categories are
+     * worth double-checking, instead of every transaction looking
+     * equally confident.
+     *
+     * A Boolean (not a primitive boolean) on purpose: existing rows
+     * from before this field existed will read back as null rather
+     * than crashing on unboxing, and isLowConfidence() below treats
+     * null the same as false. A transaction the user entered manually,
+     * or ever edited/corrected, is never low-confidence - see
+     * TransactionController.update().
+     */
+    private Boolean lowConfidence = Boolean.FALSE;
+
+    /**
      * JPA requires a no-argument constructor - it builds the object first
      * (blank), then fills in each field by calling the setters below.
      * We don't call this ourselves in normal code.
@@ -178,5 +196,18 @@ public class Transaction {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    /**
+     * Null-safe on purpose (see the field comment) - callers never have
+     * to check for null themselves before asking "is this one worth
+     * double-checking?"
+     */
+    public boolean isLowConfidence() {
+        return Boolean.TRUE.equals(lowConfidence);
+    }
+
+    public void setLowConfidence(boolean lowConfidence) {
+        this.lowConfidence = lowConfidence;
     }
 }

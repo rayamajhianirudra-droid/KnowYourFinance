@@ -25,6 +25,25 @@ import java.util.Map;
 public class AutoCategorizer {
 
     /**
+     * The minimum confidence a match needs before we trust it (FR-302).
+     * Anything below this is treated the same as "no match at all":
+     * fall back to OTHER rather than guess. 0.0 to 1.0 scale, where 1.0
+     * would mean total certainty.
+     */
+    public static final double CONFIDENCE_THRESHOLD = 0.70;
+
+    /**
+     * The confidence given to a plain keyword match. This is a simple
+     * v1 scoring model to match - a direct, unambiguous keyword hit
+     * either happened or it didn't, so there is one score for "matched"
+     * and one for "didn't" rather than a sliding scale. A future,
+     * smarter categorizer (the "AI" upgrade this class is the seam
+     * for - see the class comment) is where a real sliding-scale score
+     * per match would come in.
+     */
+    private static final double MATCH_CONFIDENCE = 0.85;
+
+    /**
      * LinkedHashMap because order matters here: we check keywords in
      * insertion order and return on the first match, so more specific
      * keywords should be listed before more general ones if they could
@@ -96,17 +115,63 @@ public class AutoCategorizer {
      * (lowercased) description. Falls back to OTHER when nothing
      * matches - we'd rather show the user a clearly-unsorted bucket
      * than guess wrong and silently miscategorize their spending.
+     *
+     * This overload exists for callers (and existing tests) that only
+     * care about the category itself. Anything that needs to know HOW
+     * confident that guess was - the statement import pipeline, in
+     * particular - should call categorizeWithConfidence() instead.
      */
     public TransactionCategory categorize(String description) {
+        return categorizeWithConfidence(description).getCategory();
+    }
+
+    /**
+     * Same matching logic as categorize(), but also reports a
+     * confidence score alongside the category (FR-301, FR-302). A
+     * keyword match scores above the 0.70 threshold; no match scores
+     * 0.0 and falls back to OTHER (FR-303) - the two are structurally
+     * the same "fallback" case, just arrived at two different ways
+     * (an empty/unreadable description vs. a description with no
+     * recognizable signal), matching FR-304's edge case.
+     */
+    public CategorizationResult categorizeWithConfidence(String description) {
         if (description == null || description.isBlank()) {
-            return TransactionCategory.OTHER;
+            return new CategorizationResult(TransactionCategory.OTHER, 0.0);
         }
         String lower = description.toLowerCase(Locale.ROOT);
         for (Map.Entry<String, TransactionCategory> entry : KEYWORD_MAP.entrySet()) {
             if (lower.contains(entry.getKey())) {
-                return entry.getValue();
+                return new CategorizationResult(entry.getValue(), MATCH_CONFIDENCE);
             }
         }
-        return TransactionCategory.OTHER;
+        return new CategorizationResult(TransactionCategory.OTHER, 0.0);
+    }
+
+    /**
+     * A category paired with how confident the categorizer was in it.
+     * isLowConfidence() is the one piece of logic callers actually need
+     * (FR-303): below CONFIDENCE_THRESHOLD, the transaction should be
+     * flagged to the user as an auto-guess rather than a real match.
+     */
+    public static class CategorizationResult {
+        private final TransactionCategory category;
+        private final double confidence;
+
+        public CategorizationResult(TransactionCategory category, double confidence) {
+            this.category = category;
+            this.confidence = confidence;
+        }
+
+        public TransactionCategory getCategory() {
+            return category;
+        }
+
+        public double getConfidence() {
+            return confidence;
+        }
+
+        public boolean isLowConfidence() {
+            return confidence < CONFIDENCE_THRESHOLD;
+        }
     }
 }

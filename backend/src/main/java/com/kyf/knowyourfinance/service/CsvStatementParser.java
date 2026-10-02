@@ -45,8 +45,9 @@ public class CsvStatementParser {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE; // yyyy-MM-dd
 
-    public List<ParsedRow> parse(InputStream csvInputStream) throws IOException {
+    public ParseResult parse(InputStream csvInputStream) throws IOException {
         List<ParsedRow> rows = new ArrayList<>();
+        int skippedRowCount = 0;
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(csvInputStream, StandardCharsets.UTF_8))) {
@@ -58,14 +59,18 @@ public class CsvStatementParser {
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
                 if (line.isBlank()) {
-                    continue; // skip blank lines some exports leave at the end
+                    continue; // skip blank lines some exports leave at the end -
+                    // not a parse failure, so this doesn't count toward
+                    // skippedRowCount
                 }
 
                 String[] columns = splitCsvLine(line);
                 if (columns.length < 3) {
                     // Malformed row - we skip it rather than fail the whole
                     // upload. A statement with one bad line shouldn't block
-                    // every other valid transaction from being imported.
+                    // every other valid transaction from being imported, but
+                    // the user still deserves to know it happened (FR-104).
+                    skippedRowCount++;
                     continue;
                 }
 
@@ -76,13 +81,14 @@ public class CsvStatementParser {
                     rows.add(new ParsedRow(date, description, amount));
                 } catch (DateTimeParseException | NumberFormatException e) {
                     // Same reasoning as above: one bad row doesn't sink the
-                    // whole import. In a later iteration we'd collect these
-                    // as warnings to show the user ("line 14 skipped").
+                    // whole import, but it does count toward the skipped
+                    // total reported back to the user.
+                    skippedRowCount++;
                 }
             }
         }
 
-        return rows;
+        return new ParseResult(rows, skippedRowCount);
     }
 
     /**
@@ -110,6 +116,31 @@ public class CsvStatementParser {
         }
         fields.add(current.toString());
         return fields.toArray(new String[0]);
+    }
+
+    /**
+     * What parse() hands back: the rows that parsed successfully, plus
+     * how many didn't (FR-104). Bundling both in one object instead of
+     * just returning the row list means a caller can't accidentally
+     * forget to report the skipped count - it's sitting right there
+     * next to the rows.
+     */
+    public static class ParseResult {
+        private final List<ParsedRow> rows;
+        private final int skippedRowCount;
+
+        public ParseResult(List<ParsedRow> rows, int skippedRowCount) {
+            this.rows = rows;
+            this.skippedRowCount = skippedRowCount;
+        }
+
+        public List<ParsedRow> getRows() {
+            return rows;
+        }
+
+        public int getSkippedRowCount() {
+            return skippedRowCount;
+        }
     }
 
     /**

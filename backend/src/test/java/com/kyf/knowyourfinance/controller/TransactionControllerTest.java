@@ -124,6 +124,35 @@ class TransactionControllerTest {
     }
 
     @Test
+    void updatingATransactionClearsTheLowConfidenceFlag() throws Exception {
+        // This transaction was auto-imported with a low-confidence guess
+        // (e.g. it landed in OTHER). Once a human reviews and saves it -
+        // even if they leave the category as-is - it's no longer an
+        // unreviewed AI guess (FR-306), so the flag should clear.
+        Transaction existing = new Transaction(
+                LocalDate.of(2026, 9, 2), "XZQ MERCHANT 991", new BigDecimal("12.00"),
+                TransactionType.EXPENSE, null, 1L);
+        existing.setLowConfidence(true);
+        when(transactionRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mockMvc.perform(put("/api/transactions/5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "date": "2026-09-02",
+                                  "description": "XZQ MERCHANT 991",
+                                  "amount": 12.00,
+                                  "type": "EXPENSE",
+                                  "category": "DINING",
+                                  "userId": 1
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lowConfidence").value(false));
+    }
+
+    @Test
     void updatingAMissingTransactionReturns404() throws Exception {
         when(transactionRepository.findById(404L)).thenReturn(Optional.empty());
 

@@ -251,6 +251,21 @@ td {
   color: var(--color-expense);
 }
 
+/* Marks a transaction whose category was an AI auto-guess below the
+   confidence threshold (as opposed to a confident keyword match, or a
+   category a person chose/confirmed) - see Transaction.lowConfidence. */
+.low-confidence-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #fff4e0;
+  color: #9a6400;
+  vertical-align: middle;
+}
+
 /* "Smart insights" - the auto-generated sentences above the monthly
    stat grid. Styled as a distinct callout (not just another list) so
    it reads as "here's what this means," separate from the raw numbers

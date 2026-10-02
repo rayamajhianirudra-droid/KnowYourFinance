@@ -92,6 +92,12 @@ public class TransactionController {
      * existing Transaction object's `id` rather than trusting whatever
      * the request body sent - the URL path is the source of truth for
      * which row is being edited, not the body.
+     *
+     * Any edit here also clears lowConfidence (FR-306): once a human
+     * has looked at a transaction and saved it, whatever category it
+     * ends up with is a deliberate choice, not an AI guess, even if the
+     * user left the category itself unchanged. It shouldn't keep
+     * showing the "auto-guessed" marker after that.
      */
     @PutMapping("/{id}")
     public ResponseEntity<Transaction> update(
@@ -103,6 +109,7 @@ public class TransactionController {
                     existing.setAmount(updates.getAmount());
                     existing.setType(updates.getType());
                     existing.setCategory(updates.getCategory());
+                    existing.setLowConfidence(false);
                     Transaction saved = transactionRepository.save(existing);
                     return ResponseEntity.ok(saved);
                 })

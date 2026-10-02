@@ -138,4 +138,65 @@ class StatementImportServiceTest {
         assertEquals(1, response.getDuplicatesSkipped());
         verify(transactionRepository, times(1)).save(any());
     }
+
+    @Test
+    void reportsHowManyRowsFailedToParse() throws IOException {
+        // Row 2 has a non-numeric amount and should be dropped and
+        // counted, while row 1 and row 3 still get imported (FR-104).
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-01,GOOD ROW,10.00
+                2026-09-02,BAD AMOUNT,not-a-number
+                2026-09-03,ANOTHER GOOD ROW,20.00
+                """;
+
+        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
+                any(), any(), any(), any(), any())).thenReturn(false);
+
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
+
+        assertEquals(2, response.getRowsParsed());
+        assertEquals(2, response.getTransactionsSaved());
+        assertEquals(1, response.getRowsSkipped());
+    }
+
+    @Test
+    void flagsALowConfidenceCategoryOnTheSavedTransaction() throws IOException {
+        // "XZQ MERCHANT 991" matches none of AutoCategorizer's keywords,
+        // so it falls back to OTHER with confidence below the 0.70
+        // threshold - the saved transaction should be flagged (FR-303).
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-01,XZQ MERCHANT 991,-15.00
+                """;
+
+        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
+                any(), any(), any(), any(), any())).thenReturn(false);
+
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
+
+        Transaction saved = response.getTransactions().get(0);
+        assertEquals(TransactionCategory.OTHER, saved.getCategory());
+        assertEquals(true, saved.isLowConfidence());
+    }
+
+    @Test
+    void doesNotFlagAConfidentCategoryMatch() throws IOException {
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-02,STARBUCKS #4521,-5.75
+                """;
+
+        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
+                any(), any(), any(), any(), any())).thenReturn(false);
+
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
+
+        Transaction saved = response.getTransactions().get(0);
+        assertEquals(TransactionCategory.DINING, saved.getCategory());
+        assertFalse(saved.isLowConfidence());
+    }
 }

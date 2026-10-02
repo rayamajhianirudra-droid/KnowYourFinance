@@ -4,6 +4,8 @@ import com.kyf.knowyourfinance.model.TransactionCategory;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests the keyword-matching categorizer. Cheap and fast like
@@ -43,5 +45,31 @@ class AutoCategorizerTest {
     void recognizesIncomeKeywords() {
         assertEquals(TransactionCategory.INCOME, categorizer.categorize("PAYROLL DEPOSIT"));
         assertEquals(TransactionCategory.INCOME, categorizer.categorize("DIRECT DEPOSIT ACME CORP"));
+    }
+
+    @Test
+    void aKeywordMatchMeetsTheConfidenceThreshold() {
+        AutoCategorizer.CategorizationResult result =
+                categorizer.categorizeWithConfidence("NETFLIX.COM");
+
+        assertEquals(TransactionCategory.SUBSCRIPTIONS, result.getCategory());
+        assertTrue(result.getConfidence() >= AutoCategorizer.CONFIDENCE_THRESHOLD);
+        assertFalse(result.isLowConfidence());
+    }
+
+    @Test
+    void noMatchFallsBelowTheConfidenceThresholdAndIsFlaggedLowConfidence() {
+        AutoCategorizer.CategorizationResult result =
+                categorizer.categorizeWithConfidence("XZQ MERCHANT 991");
+
+        assertEquals(TransactionCategory.OTHER, result.getCategory());
+        assertTrue(result.getConfidence() < AutoCategorizer.CONFIDENCE_THRESHOLD);
+        assertTrue(result.isLowConfidence());
+    }
+
+    @Test
+    void blankOrNullDescriptionIsLowConfidence() {
+        assertTrue(categorizer.categorizeWithConfidence("").isLowConfidence());
+        assertTrue(categorizer.categorizeWithConfidence(null).isLowConfidence());
     }
 }

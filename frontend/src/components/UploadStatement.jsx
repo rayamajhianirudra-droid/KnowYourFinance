@@ -77,6 +77,14 @@ function UploadStatement({ onImported }) {
                 duplicates already in your account.
               </>
             )}
+            {result.rowsSkipped > 0 && (
+              <>
+                {" "}
+                <strong>{result.rowsSkipped}</strong> row
+                {result.rowsSkipped === 1 ? "" : "s"} couldn't be read
+                (missing or badly formatted data) and were skipped.
+              </>
+            )}
           </p>
         </div>
       )}

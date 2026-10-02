@@ -96,6 +96,14 @@ function TransactionList({ refreshKey }) {
                       </option>
                     ))}
                   </select>
+                  {t.lowConfidence && (
+                    <span
+                      className="low-confidence-badge"
+                      title="Auto-assigned with low confidence - double-check this one"
+                    >
+                      auto-guessed
+                    </span>
+                  )}
                 </td>
                 <td>
                   <span className={`badge ${t.type.toLowerCase()}`}>

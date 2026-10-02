@@ -49,7 +49,8 @@ public class StatementImportService {
     }
 
     public StatementImportResponse importCsv(InputStream csvInputStream, Long userId) throws IOException {
-        List<CsvStatementParser.ParsedRow> parsedRows = csvStatementParser.parse(csvInputStream);
+        CsvStatementParser.ParseResult parseResult = csvStatementParser.parse(csvInputStream);
+        List<CsvStatementParser.ParsedRow> parsedRows = parseResult.getRows();
 
         List<Transaction> saved = new ArrayList<>();
         int redactedCount = 0;
@@ -65,8 +66,10 @@ public class StatementImportService {
             }
             String safeDescription = redactionResult.getText();
 
-            // Step 2: now that the text is safe, figure out a category.
-            var category = autoCategorizer.categorize(safeDescription);
+            // Step 2: now that the text is safe, figure out a category
+            // AND how confident that guess is (FR-301, FR-302).
+            var categorization = autoCategorizer.categorizeWithConfidence(safeDescription);
+            var category = categorization.getCategory();
 
             // Step 3: positive amount = income, negative = expense (see
             // CsvStatementParser's class comment for the convention).
@@ -92,15 +95,15 @@ public class StatementImportService {
 
             Transaction transaction = new Transaction(
                     row.getDate(), safeDescription, positiveAmount, type, category, userId);
+            // FR-303: flag it when the category above was a low-confidence
+            // guess rather than a real keyword match, so the frontend can
+            // show the user which ones are worth a second look.
+            transaction.setLowConfidence(categorization.isLowConfidence());
             saved.add(transactionRepository.save(transaction));
         }
 
-        int rowsSkipped = 0; // rows that failed to parse at all never become a ParsedRow,
-        // so they're invisible to this method - CsvStatementParser silently
-        // drops them today. Surfacing an exact skipped count is a known
-        // follow-up (see build-log 02).
-
         return new StatementImportResponse(
-                parsedRows.size(), saved.size(), redactedCount, rowsSkipped, duplicateCount, saved);
+                parsedRows.size(), saved.size(), redactedCount,
+                parseResult.getSkippedRowCount(), duplicateCount, saved);
     }
 }
