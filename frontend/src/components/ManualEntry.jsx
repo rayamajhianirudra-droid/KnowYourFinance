@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { addTransaction } from "../api";
+import { categoryLabel } from "../utils/format";
+import { IncomeIcon, ExpenseIcon, CheckCircleIcon, AlertIcon } from "./Icons";
 
 const CATEGORIES = [
   "GROCERIES", "DINING", "RENT_MORTGAGE", "UTILITIES", "SUBSCRIPTIONS",
@@ -10,20 +12,13 @@ const CATEGORIES = [
 const today = () => new Date().toISOString().slice(0, 10);
 
 /**
- * Manual transaction entry - this is how someone who pays with cash
- * (or just wants to log one thing by hand) still gets to use the
- * app's dashboard and reporting, even though there's no statement to
- * upload for a cash purchase. A bank statement only ever shows what
- * went THROUGH the bank; cash spending never appears on one, so if
- * this form didn't exist, cash users would have no way to get an
- * accurate "what did I actually spend this month" number.
- *
- * This hits the exact same Transaction table and the exact same
- * dashboard math as statement-uploaded transactions - there's no
- * separate "cash mode." A manually entered coffee and a
- * statement-parsed coffee are indistinguishable once saved, which is
- * what makes the month/year report accurate regardless of how someone
- * pays.
+ * Manual transaction entry - how someone who pays with cash (or just
+ * wants to log one thing by hand) still gets an accurate dashboard. A
+ * bank statement only ever shows what went THROUGH the bank; cash
+ * spending never appears on one, so without this form, cash users
+ * would have no way to get a correct "what did I actually spend this
+ * month" number. This hits the exact same Transaction table statement
+ * uploads do - no separate "cash mode," no different math downstream.
  */
 function ManualEntry({ onAdded }) {
   const [date, setDate] = useState(today());
@@ -33,11 +28,13 @@ function ManualEntry({ onAdded }) {
   const [category, setCategory] = useState("OTHER");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   async function handleSubmit(e) {
     e.preventDefault();
     setStatus("saving");
     setError(null);
+    setFieldErrors({});
     try {
       await addTransaction({ date, description, amount, type, category });
       setStatus("done");
@@ -46,80 +43,114 @@ function ManualEntry({ onAdded }) {
       onAdded?.();
     } catch (err) {
       setError(err.message);
+      setFieldErrors(err.fieldErrors || {});
       setStatus("error");
     }
   }
 
   return (
-    <section className="card">
-      <h2>Add a transaction by hand</h2>
-      <p className="muted">
-        Paid cash? Cash purchases never show up on a bank statement, so this
-        is how they still count toward your totals and category breakdown.
+    <div className="page">
+      <h1 className="page-title">Add Transaction</h1>
+      <p className="page-subtitle">
+        Paid cash, or missed something your statement wouldn't catch? Log it
+        here and it counts toward your totals and category breakdown exactly
+        like an imported transaction.
       </p>
 
-      <form className="manual-form" onSubmit={handleSubmit}>
-        <label>
-          Date
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
+      <form className="panel entry-form" onSubmit={handleSubmit} noValidate>
+        <div className="type-toggle" role="radiogroup" aria-label="Transaction type">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={type === "EXPENSE"}
+            className={`type-toggle__btn${type === "EXPENSE" ? " type-toggle__btn--active-expense" : ""}`}
+            onClick={() => setType("EXPENSE")}
+          >
+            <ExpenseIcon width={16} height={16} aria-hidden="true" />
+            Expense
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={type === "INCOME"}
+            className={`type-toggle__btn${type === "INCOME" ? " type-toggle__btn--active-income" : ""}`}
+            onClick={() => setType("INCOME")}
+          >
+            <IncomeIcon width={16} height={16} aria-hidden="true" />
+            Income
+          </button>
+        </div>
+
+        <label className="field field--amount">
+          <span className="field__label">Amount</span>
+          <div className="amount-input">
+            <span className="amount-input__prefix">$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              aria-invalid={Boolean(fieldErrors.amount)}
+            />
+          </div>
+          {fieldErrors.amount && <span className="field__error">{fieldErrors.amount}</span>}
         </label>
 
-        <label>
-          What was it?
+        <label className="field">
+          <span className="field__label">What was it?</span>
           <input
             type="text"
             placeholder="e.g. Farmers market produce"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
+            aria-invalid={Boolean(fieldErrors.description)}
           />
+          {fieldErrors.description && <span className="field__error">{fieldErrors.description}</span>}
         </label>
 
-        <label>
-          Amount
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-        </label>
+        <div className="field-row">
+          <label className="field">
+            <span className="field__label">Date</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+              aria-invalid={Boolean(fieldErrors.date)}
+            />
+            {fieldErrors.date && <span className="field__error">{fieldErrors.date}</span>}
+          </label>
 
-        <label>
-          Type
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="EXPENSE">Expense (money out)</option>
-            <option value="INCOME">Income (money in)</option>
-          </select>
-        </label>
+          <label className="field">
+            <span className="field__label">Category</span>
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{categoryLabel(c)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
 
-        <label>
-          Category
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button type="submit" disabled={status === "saving"}>
+        <button type="submit" className="btn btn--primary" disabled={status === "saving"}>
           {status === "saving" ? "Saving..." : "Add transaction"}
         </button>
-      </form>
 
-      {status === "error" && <p className="error">{error}</p>}
-      {status === "done" && <p className="result">Added.</p>}
-    </section>
+        {status === "error" && (
+          <p className="error">
+            <AlertIcon width={16} height={16} aria-hidden="true" /> {error}
+          </p>
+        )}
+        {status === "done" && (
+          <p className="success-note">
+            <CheckCircleIcon width={16} height={16} aria-hidden="true" /> Transaction added.
+          </p>
+        )}
+      </form>
+    </div>
   );
 }
 

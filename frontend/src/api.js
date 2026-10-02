@@ -23,12 +23,12 @@ export const CURRENT_USER_ID = 1;
  * StatementImportResponse: how many rows were parsed/saved/redacted,
  * plus the actual transactions that got created.
  */
-export async function uploadStatement(file) {
+export async function uploadStatement(file, { preview = false } = {}) {
   const formData = new FormData();
   formData.append("file", file);
 
   const response = await fetch(
-    `${API_BASE}/statements/upload?userId=${CURRENT_USER_ID}`,
+    `${API_BASE}/statements/upload?userId=${CURRENT_USER_ID}&preview=${preview}`,
     {
       method: "POST",
       body: formData,
@@ -48,6 +48,21 @@ export async function uploadStatement(file) {
 export async function getMonthlyReport(year, month) {
   const response = await fetch(
     `${API_BASE}/dashboard/report?userId=${CURRENT_USER_ID}&year=${year}&month=${month}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to load report (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Fetches a report for an arbitrary date range instead of a whole
+ * calendar month - powers the dashboard's "Custom date range" period
+ * option. start/end are "YYYY-MM-DD" strings.
+ */
+export async function getReportRange(start, end) {
+  const response = await fetch(
+    `${API_BASE}/dashboard/report-range?userId=${CURRENT_USER_ID}&start=${start}&end=${end}`
   );
   if (!response.ok) {
     throw new Error(`Failed to load report (${response.status})`);
@@ -90,7 +105,14 @@ export async function addTransaction({ date, description, amount, type, category
     }),
   });
   if (!response.ok) {
-    throw new Error(`Failed to add transaction (${response.status})`);
+    // GlobalExceptionHandler (backend) returns { message, fieldErrors }
+    // for a validation failure - surface that detail instead of just a
+    // status code, so the form can point at the specific field that's
+    // wrong ("amount is required") instead of a generic failure.
+    const body = await response.json().catch(() => null);
+    const err = new Error(body?.message || `Failed to add transaction (${response.status})`);
+    err.fieldErrors = body?.fieldErrors || null;
+    throw err;
   }
   return response.json();
 }

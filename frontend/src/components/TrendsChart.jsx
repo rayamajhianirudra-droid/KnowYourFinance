@@ -1,24 +1,45 @@
 import { useEffect, useState } from "react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 import { getTrends } from "../api";
-import { formatCurrency } from "../utils/format";
+import { formatCompactCurrency, formatCurrency } from "../utils/format";
 
 const MONTH_ABBR = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+const tooltipStyle = {
+  borderRadius: 10,
+  border: "1px solid var(--color-border)",
+  boxShadow: "var(--shadow-md)",
+  fontFamily: "var(--font-sans)",
+  fontSize: 13,
+};
+
+const axisTick = { fill: "var(--color-text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" };
+
 /**
- * "Spending trends over time" - a second way of looking at the same
- * Transaction data the Monthly report above pulls from, but across
- * several months at once instead of one at a time. Deliberately kept
- * independent of the Monthly report's month/year picker: this always
- * shows the trailing 6 months ending at today, so switching the report
- * to look at an old month doesn't also drag this chart back in time.
+ * Two related but distinct views of the same trailing-6-month data:
+ * income vs. expenses side by side per month (a bar chart - good for
+ * comparing two discrete values per period), and net savings as a
+ * single line over time (an area chart - good for reading a trend's
+ * direction at a glance). Showing both answers two different
+ * questions: "how do income and spending compare each month" and "is
+ * my overall financial position improving."
  *
- * No charting library involved - each bar is just a plain <div> whose
- * CSS height is set to a percentage of the tallest value in the whole
- * dataset, so the tallest bar always fills the chart and everything
- * else is sized relative to it.
+ * Deliberately independent of the report's own period selector above -
+ * this always shows the trailing 6 months ending today, so switching
+ * the report to an old month doesn't also drag this back in time.
  */
 function TrendsChart({ refreshKey }) {
   const [trend, setTrend] = useState([]);
@@ -46,47 +67,91 @@ function TrendsChart({ refreshKey }) {
     };
   }, [refreshKey]);
 
-  const maxValue = Math.max(
-    1, // never divide by zero if every month is $0 so far
-    ...trend.flatMap((m) => [Number(m.totalIncome), Number(m.totalExpenses)])
-  );
+  const chartData = trend.map((m) => ({
+    label: MONTH_ABBR[m.month - 1],
+    income: Number(m.totalIncome),
+    expenses: Number(m.totalExpenses),
+    netSavings: Number(m.netSavings),
+  }));
+
+  const hasAnyData = chartData.some((m) => m.income > 0 || m.expenses > 0);
+
+  if (loading) return <p className="muted">Loading trends...</p>;
+  if (error) return <p className="error">{error}</p>;
 
   return (
-    <section className="card">
-      <h2>Spending trends (last 6 months)</h2>
+    <div className="trends-grid">
+      <div className="panel">
+        <h3 className="panel-title">Income vs. expenses</h3>
+        {!hasAnyData ? (
+          <p className="muted chart-empty">Not enough history yet to chart this.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} barGap={4}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisTick} />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tick={axisTick}
+                tickFormatter={(v) => formatCompactCurrency(v)}
+                width={56}
+              />
+              <Tooltip
+                formatter={(value, name) => [formatCurrency(value), name === "income" ? "Income" : "Expenses"]}
+                contentStyle={tooltipStyle}
+                cursor={{ fill: "var(--color-surface-soft)" }}
+              />
+              <Bar dataKey="income" fill="var(--color-positive)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+              <Bar dataKey="expenses" fill="var(--color-negative)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+        <div className="chart-legend">
+          <span><span className="chart-swatch" style={{ background: "var(--color-positive)" }} /> Income</span>
+          <span><span className="chart-swatch" style={{ background: "var(--color-negative)" }} /> Expenses</span>
+        </div>
+      </div>
 
-      {loading && <p className="muted">Loading...</p>}
-      {error && <p className="error">{error}</p>}
-
-      {!loading && !error && (
-        <>
-          <div className="trend-legend">
-            <span><span className="trend-swatch income" /> Income</span>
-            <span><span className="trend-swatch expense" /> Expenses</span>
-          </div>
-
-          <div className="trend-chart">
-            {trend.map((m) => (
-              <div className="trend-month" key={`${m.year}-${m.month}`}>
-                <div className="trend-bars">
-                  <div
-                    className="trend-bar income"
-                    style={{ height: `${(Number(m.totalIncome) / maxValue) * 100}%` }}
-                    title={`Income: ${formatCurrency(m.totalIncome)}`}
-                  />
-                  <div
-                    className="trend-bar expense"
-                    style={{ height: `${(Number(m.totalExpenses) / maxValue) * 100}%` }}
-                    title={`Expenses: ${formatCurrency(m.totalExpenses)}`}
-                  />
-                </div>
-                <span className="trend-label">{MONTH_ABBR[m.month - 1]}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </section>
+      <div className="panel">
+        <h3 className="panel-title">Financial trend</h3>
+        {!hasAnyData ? (
+          <p className="muted chart-empty">Not enough history yet to chart this.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="netSavingsFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-interactive)" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="var(--color-interactive)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisTick} />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tick={axisTick}
+                tickFormatter={(v) => formatCompactCurrency(v)}
+                width={56}
+              />
+              <Tooltip
+                formatter={(value) => [formatCurrency(value), "Net savings"]}
+                contentStyle={tooltipStyle}
+              />
+              <Area
+                type="monotone"
+                dataKey="netSavings"
+                stroke="var(--color-interactive)"
+                strokeWidth={2}
+                fill="url(#netSavingsFill)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+        <p className="muted chart-caption">Net savings (income minus expenses) over the last 6 months.</p>
+      </div>
+    </div>
   );
 }
 
