@@ -14,3 +14,8 @@ target/
 
 # Logs
 *.log
+
+# The local H2 database file (see build-log 12). This is YOUR data -
+# every developer running the app locally gets their own, and it
+# should never be committed or shared through git.
+/data/
