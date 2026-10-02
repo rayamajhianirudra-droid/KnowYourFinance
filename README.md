@@ -18,18 +18,32 @@ docs/       build-log/ — plain-language documentation of every decision made, 
 
 ## Running it locally
 
-Two terminals:
+One command starts both the backend and the frontend:
 
 ```bash
-# Terminal 1 — backend (http://localhost:8080)
+./start.sh
+```
+
+Press Ctrl+C once to stop both. The first time you run it, install frontend dependencies first:
+
+```bash
+cd frontend && npm install && cd ..
+./start.sh
+```
+
+If you'd rather run them separately (two terminals):
+
+```bash
+# Terminal 1: backend (http://localhost:8080)
 cd backend
 mvn spring-boot:run
 
-# Terminal 2 — frontend (http://localhost:5173)
+# Terminal 2: frontend (http://localhost:5173)
 cd frontend
-npm install
 npm run dev
 ```
+
+Note that neither of these runs as a background service. Shutting down or restarting your computer stops both processes, same as closing any other program, so you'll need to run `./start.sh` again next time. That's expected. It's separate from data persistence, which is handled on its own (see the build log on persistent storage) and survives restarts just fine.
 
 H2's web console (dev-only database viewer) is available at `http://localhost:8080/h2-console` while the backend is running.
 
