@@ -178,3 +178,33 @@ export function ChevronDownIcon(props) {
     </svg>
   );
 }
+
+export function EditIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12.3 3.8l3.9 3.9-9 9-4.4 1 1-4.4z" />
+      <path d="M10.9 5.2l3.9 3.9" />
+    </svg>
+  );
+}
+
+export function TrashIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6h12" />
+      <path d="M7.5 6V4.3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V6" />
+      <path d="M5.5 6l.6 9.3a1.3 1.3 0 0 0 1.3 1.2h5.2a1.3 1.3 0 0 0 1.3-1.2L14.5 6" />
+      <path d="M8.3 9v4.5" />
+      <path d="M11.7 9v4.5" />
+    </svg>
+  );
+}
+
+export function XIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5.5 5.5l9 9" />
+      <path d="M14.5 5.5l-9 9" />
+    </svg>
+  );
+}

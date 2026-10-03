@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { listTransactions, updateTransaction } from "../api";
+import { listTransactions, updateTransaction, deleteTransaction } from "../api";
 import { formatCurrency, categoryLabel } from "../utils/format";
-import { SearchIcon, ArrowUpIcon, ArrowDownIcon } from "./Icons";
+import { SearchIcon, ArrowUpIcon, ArrowDownIcon, EditIcon, TrashIcon, CheckCircleIcon, XIcon } from "./Icons";
 import EmptyState from "./EmptyState";
 
 const CATEGORIES = [
@@ -38,6 +38,21 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
 
+  // Full-row editing (FR-403: date, description, amount, category) -
+  // editingId tracks which row is in edit mode, editDraft holds its
+  // in-progress field values, and editErrors holds any field-level
+  // validation messages the backend sent back on a failed save.
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [editErrors, setEditErrors] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Delete (FR-404) is a two-step confirm inline in the row, rather
+  // than a native confirm() dialog, so it matches the rest of the
+  // design system instead of popping a browser-chrome alert.
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteBusyId, setDeleteBusyId] = useState(null);
+
   useEffect(() => {
     setLoading(true);
     listTransactions()
@@ -60,6 +75,58 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       setError(err.message);
     } finally {
       setSavingId(null);
+    }
+  }
+
+  function startEdit(t) {
+    setDeletingId(null);
+    setEditingId(t.id);
+    setEditErrors({});
+    setEditDraft({
+      date: t.date,
+      description: t.description,
+      amount: String(t.amount),
+      category: t.category ?? "OTHER",
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft(null);
+    setEditErrors({});
+  }
+
+  async function saveEdit(t) {
+    setEditSaving(true);
+    setEditErrors({});
+    try {
+      const updated = await updateTransaction(t.id, {
+        ...t,
+        date: editDraft.date,
+        description: editDraft.description,
+        amount: editDraft.amount,
+        category: editDraft.category,
+      });
+      setTransactions((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+      cancelEdit();
+    } catch (err) {
+      setEditErrors(err.fieldErrors || {});
+      if (!err.fieldErrors) setError(err.message);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function confirmDelete(id) {
+    setDeleteBusyId(id);
+    try {
+      await deleteTransaction(id);
+      setTransactions((prev) => prev.filter((row) => row.id !== id));
+      setDeletingId(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleteBusyId(null);
     }
   }
 
@@ -130,9 +197,9 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
     <div className="page">
       <h1 className="page-title">Transactions</h1>
       <p className="page-subtitle">
-        Every transaction on file. Category guessed wrong? Pick the right
-        one from the dropdown — it saves immediately and updates your
-        dashboard.
+        Every transaction on file. Fix a category from its dropdown,
+        edit a row with the pencil, or remove one entirely — every
+        change updates your dashboard immediately.
       </p>
 
       <div className="panel filter-bar">
@@ -226,43 +293,176 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
                 <th>Category</th>
                 <th>Type</th>
                 <th className="amount-col"><SortButton field="amount" label="Amount" /></th>
+                <th className="actions-col">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((t) => (
-                <tr key={t.id}>
-                  <td className="cell-date">{t.date}</td>
-                  <td className="cell-description">{t.description}</td>
-                  <td>
-                    <select
-                      className="category-select"
-                      value={t.category ?? "OTHER"}
-                      disabled={savingId === t.id}
-                      onChange={(e) => handleCategoryChange(t, e.target.value)}
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>{categoryLabel(c)}</option>
-                      ))}
-                    </select>
-                    {t.lowConfidence && (
-                      <span
-                        className="low-confidence-badge"
-                        title="Auto-assigned with low confidence - double-check this one"
+              {filtered.map((t) => {
+                if (editingId === t.id) {
+                  return (
+                    <tr key={t.id} className="row-editing">
+                      <td className="cell-date">
+                        <input
+                          type="date"
+                          value={editDraft.date}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, date: e.target.value }))}
+                          aria-invalid={Boolean(editErrors.date)}
+                          aria-label="Edit date"
+                        />
+                        {editErrors.date && <span className="field__error">{editErrors.date}</span>}
+                      </td>
+                      <td className="cell-description">
+                        <input
+                          type="text"
+                          value={editDraft.description}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                          aria-invalid={Boolean(editErrors.description)}
+                          aria-label="Edit description"
+                        />
+                        {editErrors.description && <span className="field__error">{editErrors.description}</span>}
+                      </td>
+                      <td>
+                        <select
+                          className="category-select"
+                          value={editDraft.category}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, category: e.target.value }))}
+                          aria-label="Edit category"
+                        >
+                          {CATEGORIES.map((c) => (
+                            <option key={c} value={c}>{categoryLabel(c)}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <span className={`badge badge--${t.type.toLowerCase()}`}>
+                          {t.type === "INCOME" ? "Income" : "Expense"}
+                        </span>
+                      </td>
+                      <td className="amount-col">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          className="cell-amount-input"
+                          value={editDraft.amount}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, amount: e.target.value }))}
+                          aria-invalid={Boolean(editErrors.amount)}
+                          aria-label="Edit amount"
+                        />
+                        {editErrors.amount && <span className="field__error">{editErrors.amount}</span>}
+                      </td>
+                      <td className="actions-col">
+                        <div className="row-actions">
+                          <button
+                            type="button"
+                            className="icon-btn icon-btn--confirm"
+                            onClick={() => saveEdit(t)}
+                            disabled={editSaving}
+                            aria-label="Save changes"
+                            title="Save"
+                          >
+                            <CheckCircleIcon width={17} height={17} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            onClick={cancelEdit}
+                            disabled={editSaving}
+                            aria-label="Cancel edit"
+                            title="Cancel"
+                          >
+                            <XIcon width={17} height={17} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return (
+                  <tr key={t.id}>
+                    <td className="cell-date">{t.date}</td>
+                    <td className="cell-description">{t.description}</td>
+                    <td>
+                      <select
+                        className="category-select"
+                        value={t.category ?? "OTHER"}
+                        disabled={savingId === t.id}
+                        onChange={(e) => handleCategoryChange(t, e.target.value)}
+                        aria-label={`Category for ${t.description}`}
                       >
-                        auto-guessed
+                        {CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{categoryLabel(c)}</option>
+                        ))}
+                      </select>
+                      {t.lowConfidence && (
+                        <span
+                          className="low-confidence-badge"
+                          title="Auto-assigned with low confidence - double-check this one"
+                        >
+                          auto-guessed
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge badge--${t.type.toLowerCase()}`}>
+                        {t.type === "INCOME" ? "Income" : "Expense"}
                       </span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge badge--${t.type.toLowerCase()}`}>
-                      {t.type === "INCOME" ? "Income" : "Expense"}
-                    </span>
-                  </td>
-                  <td className={`amount-col amount amount--${t.type.toLowerCase()}`}>
-                    {t.type === "EXPENSE" ? "-" : "+"}{formatCurrency(t.amount)}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className={`amount-col amount amount--${t.type.toLowerCase()}`}>
+                      {t.type === "EXPENSE" ? "-" : "+"}{formatCurrency(t.amount)}
+                    </td>
+                    <td className="actions-col">
+                      {deletingId === t.id ? (
+                        <div className="row-actions row-actions--confirm">
+                          <span className="row-actions__prompt">Delete?</span>
+                          <button
+                            type="button"
+                            className="icon-btn icon-btn--danger"
+                            onClick={() => confirmDelete(t.id)}
+                            disabled={deleteBusyId === t.id}
+                            aria-label={`Confirm delete ${t.description}`}
+                            title="Confirm delete"
+                          >
+                            <CheckCircleIcon width={17} height={17} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            onClick={() => setDeletingId(null)}
+                            disabled={deleteBusyId === t.id}
+                            aria-label="Cancel delete"
+                            title="Cancel"
+                          >
+                            <XIcon width={17} height={17} aria-hidden="true" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="row-actions">
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            onClick={() => startEdit(t)}
+                            aria-label={`Edit ${t.description}`}
+                            title="Edit"
+                          >
+                            <EditIcon width={16} height={16} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn icon-btn--danger"
+                            onClick={() => setDeletingId(t.id)}
+                            aria-label={`Delete ${t.description}`}
+                            title="Delete"
+                          >
+                            <TrashIcon width={16} height={16} aria-hidden="true" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <p className="table-footnote">

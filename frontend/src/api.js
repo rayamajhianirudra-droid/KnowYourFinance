@@ -118,8 +118,10 @@ export async function addTransaction({ date, description, amount, type, category
 }
 
 /**
- * Edits an existing transaction - most commonly used to fix a category
- * AutoCategorizer guessed wrong, without deleting and re-adding the row.
+ * Edits an existing transaction - started out as just the category-fix
+ * path (AutoCategorizer guessing wrong), now also the full edit path
+ * (FR-403): date, description, amount, and category, without deleting
+ * and re-adding the row.
  */
 export async function updateTransaction(id, transaction) {
   const response = await fetch(`${API_BASE}/transactions/${id}`, {
@@ -128,9 +130,27 @@ export async function updateTransaction(id, transaction) {
     body: JSON.stringify({ ...transaction, userId: CURRENT_USER_ID }),
   });
   if (!response.ok) {
-    throw new Error(`Failed to update transaction (${response.status})`);
+    // Same reasoning as addTransaction: surface which field was invalid
+    // instead of just a status code, so an edit form can point at it.
+    const body = await response.json().catch(() => null);
+    const err = new Error(body?.message || `Failed to update transaction (${response.status})`);
+    err.fieldErrors = body?.fieldErrors || null;
+    throw err;
   }
   return response.json();
+}
+
+/**
+ * Deletes a transaction (FR-404) - e.g. the user fixes a duplicate
+ * import or removes something added by mistake.
+ */
+export async function deleteTransaction(id) {
+  const response = await fetch(`${API_BASE}/transactions/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete transaction (${response.status})`);
+  }
 }
 
 /**
