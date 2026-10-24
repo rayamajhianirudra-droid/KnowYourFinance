@@ -72,6 +72,12 @@ Everything is documented as it was built, in order, in [`docs/build-log/`](docs/
 4. [Error handling](docs/build-log/04-error-handling.md) — clean API error responses
 5. [First tests](docs/build-log/05-first-tests.md) — unit and controller-level tests
 
+## Requirements and design
+
+- [Milestone 2: Software Requirements Specification](docs/requirements/milestone-2-srs.md)
+- [Milestone 3: Formal Analysis and Design Document](docs/design/milestone-3-design.md)
+- [Mermaid diagram sources](docs/diagrams/) (one file per diagram, kept in sync with the design document)
+
 ## Course context
 
 This is a COMP 425 (Software Engineering) semester project at SMSU, following a waterfall model across six milestones (Opportunity Study → Requirements Spec → Design Doc → MVP/Docker → Testing/CI-CD → Final Showcase). It's also being used as a personal learning project — every technical decision is documented in plain language, not just implemented.

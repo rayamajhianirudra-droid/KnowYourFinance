@@ -1,0 +1,28 @@
+%% file: 06-sequence-report.mmd
+sequenceDiagram
+    autonumber
+    actor U as Standard User
+    participant UI as React app
+    participant DC as DashboardController
+    participant DS as DashboardService
+    participant IS as InsightsService
+    participant Repo as TransactionRepository
+    participant DB as PostgreSQL
+
+    U->>UI: pick month and year
+    UI->>DC: GET /api/dashboard/report
+    DC->>DS: getMonthlyReport(userId, year, month)
+    DS->>Repo: sum income, sum expenses, expenses by category
+    Repo->>DB: aggregate queries for the period
+    DB-->>Repo: totals
+    Repo-->>DS: totals
+    DS->>Repo: same totals for the previous period
+    Repo->>DB: aggregate queries
+    DB-->>Repo: totals
+    Repo-->>DS: previous totals
+    DS->>IS: generate(current, previous)
+    Note over IS: Spending trend notes only appear when the change is 10 percent or more (FR-506)
+    IS-->>DS: list of plain language insights
+    DS-->>DC: report with net savings and breakdown
+    DC-->>UI: 200 report
+    UI-->>U: stat cards, category chart, insights

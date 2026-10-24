@@ -1,0 +1,27 @@
+%% file: 03-state.mmd
+stateDiagram-v2
+    [*] --> RowRead : statement uploaded
+
+    RowRead --> Skipped : parse failure (bad date, bad amount, too few columns)
+    Skipped --> [*] : counted in rowsSkipped
+
+    RowRead --> Redacted : parsed, digit runs replaced
+    Redacted --> Scoring : redacted description only
+
+    Scoring --> AutoCategorized : confidence at least 0.70
+    Scoring --> FallbackOther : confidence below 0.70, no signal, or empty description
+    FallbackOther --> LowConfidence : flag lowConfidence
+
+    AutoCategorized --> DuplicateCheck
+    LowConfidence --> DuplicateCheck
+
+    DuplicateCheck --> Discarded : identical record exists
+    Discarded --> [*] : counted in duplicatesSkipped
+    DuplicateCheck --> Saved : new record
+
+    Saved --> Reviewed : user edits any field (flag cleared)
+    LowConfidence --> Reviewed : user changes category
+    Reviewed --> Reviewed : further edits
+    Saved --> Deleted : user deletes
+    Reviewed --> Deleted : user deletes
+    Deleted --> [*]

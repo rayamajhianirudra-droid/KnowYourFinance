@@ -1,0 +1,42 @@
+%% file: 04-sequence-import.mmd
+sequenceDiagram
+    autonumber
+    actor U as Standard User
+    participant UI as React app
+    participant SC as StatementController
+    participant IS as StatementImportService
+    participant P as CsvStatementParser
+    participant R as RedactionUtil
+    participant AC as AutoCategorizer
+    participant Repo as TransactionRepository
+    participant DB as PostgreSQL
+
+    U->>UI: choose CSV file and upload
+    UI->>SC: POST /api/statements/upload
+    alt file larger than 10 MB
+        SC-->>UI: 400 with clear error message
+        UI-->>U: show file too large
+    else file accepted
+        SC->>IS: importCsv(stream, userId, persist)
+        IS->>P: parse(stream)
+        P-->>IS: parsed rows and skipped row count
+        loop each parsed row
+            IS->>R: redact(description)
+            Note over IS,R: Redaction is always the first step on a row (FR-204)
+            R-->>IS: safe description and redacted flag
+            IS->>AC: categorizeWithConfidence(safe description)
+            AC-->>IS: category and confidence
+            IS->>Repo: existsBy user, date, description, amount, type
+            Repo->>DB: select exists
+            DB-->>Repo: true or false
+            alt identical record exists
+                IS->>IS: increment duplicatesSkipped
+            else new transaction
+                IS->>Repo: save(transaction with lowConfidence flag)
+                Repo->>DB: insert
+            end
+        end
+        IS-->>SC: summary and saved transactions
+        SC-->>UI: 200 parsed, saved, redacted, skipped, duplicates
+        UI-->>U: show import summary
+    end

@@ -1,0 +1,29 @@
+%% file: 07-sequence-ai-fallback-override.mmd
+sequenceDiagram
+    autonumber
+    actor U as Standard User
+    participant UI as React app
+    participant AC as AutoCategorizer
+    participant TC as TransactionController
+    participant Repo as TransactionRepository
+    participant DB as PostgreSQL
+
+    Note over AC: Part A, during import
+    AC->>AC: score description against keyword model
+    alt confidence at least 0.70
+        AC-->>AC: return matched category
+    else below 0.70, empty text, or any failure to match
+        AC-->>AC: return OTHER with low confidence flag
+        Note over AC: Import never fails because of categorization (NFR-11)
+    end
+
+    Note over U,DB: Part B, user reviews later
+    UI-->>U: row shows an auto-guessed badge
+    U->>UI: pick the correct category
+    UI->>TC: PUT /api/transactions/id
+    TC->>TC: clear lowConfidence flag
+    TC->>Repo: save(updated transaction)
+    Repo->>DB: update
+    DB-->>Repo: updated row
+    TC-->>UI: 200 updated transaction
+    UI-->>U: badge removed, reports use the new category

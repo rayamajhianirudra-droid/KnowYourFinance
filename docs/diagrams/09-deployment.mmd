@@ -1,0 +1,15 @@
+%% file: 09-deployment.mmd
+flowchart LR
+    dev[Developer pushes or opens pull request] --> gh[GitHub repository]
+    gh --> ci1[Backend CI<br/>JDK 21, mvn verify]
+    gh --> ci2[Frontend CI<br/>npm ci, lint, build]
+    ci1 --> gate{Both green?}
+    ci2 --> gate
+    gate -- no --> fix[Fix and push again]
+    fix --> gh
+    gate -- yes --> merge[Merge to main]
+    merge --> docker[Planned: build Docker images]
+    docker --> run[Planned: run containers]
+    run --> db[(Supabase PostgreSQL)]
+
+    secrets[/"Database URL, username and password<br/>kept in environment variables only"/] -.-> run

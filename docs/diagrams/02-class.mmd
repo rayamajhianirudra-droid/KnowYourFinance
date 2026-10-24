@@ -1,0 +1,81 @@
+%% file: 02-class.mmd
+classDiagram
+    direction LR
+
+    class StatementController {
+        +upload(file, userId, preview) StatementImportResponse
+    }
+    class TransactionController {
+        +create(transaction) Transaction
+        +list(userId) List~Transaction~
+        +get(id) Transaction
+        +update(id, transaction) Transaction
+        +delete(id) void
+    }
+    class DashboardController {
+        +report(userId, year, month) MonthlyReportResponse
+        +reportRange(userId, start, end) MonthlyReportResponse
+        +trends(userId, year, month, monthsBack) List~MonthlySummary~
+    }
+
+    class StatementImportService {
+        +importCsv(stream, userId, persist) StatementImportResponse
+    }
+    class CsvStatementParser {
+        +parse(stream) ParseResult
+    }
+    class RedactionUtil {
+        <<utility>>
+        +redact(rawText) RedactionResult
+    }
+    class AutoCategorizer {
+        +CONFIDENCE_THRESHOLD : double = 0.70
+        +categorizeWithConfidence(description) CategorizationResult
+    }
+    class DashboardService {
+        +getMonthlyReport(userId, year, month) MonthlyReportResponse
+        +getReportForRange(userId, start, end) MonthlyReportResponse
+        +getTrends(userId, year, month, monthsBack) List~MonthlySummary~
+    }
+    class InsightsService {
+        +generate(current, previous) List~String~
+    }
+
+    class TransactionRepository {
+        <<interface>>
+        +existsByUserIdAndDateAndDescriptionAndAmountAndType(...) boolean
+    }
+
+    class Transaction {
+        -Long id
+        -LocalDate date
+        -String description
+        -BigDecimal amount
+        -Long userId
+        -Boolean lowConfidence
+    }
+    class TransactionType {
+        <<enumeration>>
+        INCOME
+        EXPENSE
+    }
+    class TransactionCategory {
+        <<enumeration>>
+        GROCERIES
+        DINING
+        OTHER
+        and 11 more
+    }
+
+    StatementController --> StatementImportService : uses
+    StatementImportService --> CsvStatementParser : uses
+    StatementImportService ..> RedactionUtil : calls first
+    StatementImportService --> AutoCategorizer : uses
+    StatementImportService --> TransactionRepository : saves and checks duplicates
+    TransactionController --> TransactionRepository : uses
+    DashboardController --> DashboardService : uses
+    DashboardService --> TransactionRepository : reads
+    DashboardService --> InsightsService : uses
+    TransactionRepository "1" --> "0..*" Transaction : manages
+    Transaction "*" --> "1" TransactionType : type
+    Transaction "*" --> "0..1" TransactionCategory : category

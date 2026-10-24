@@ -1,0 +1,24 @@
+%% file: 05-sequence-manual-entry.mmd
+sequenceDiagram
+    autonumber
+    actor U as Standard User
+    participant UI as React app
+    participant TC as TransactionController
+    participant H as GlobalExceptionHandler
+    participant Repo as TransactionRepository
+    participant DB as PostgreSQL
+
+    U->>UI: fill date, description, amount, type, category
+    UI->>TC: POST /api/transactions
+    alt a required field is missing
+        TC->>H: validation failure
+        H-->>UI: 400 with fieldErrors map
+        UI-->>U: highlight the specific field, for example amount
+    else all fields valid
+        TC->>Repo: save(transaction)
+        Repo->>DB: insert
+        DB-->>Repo: saved row with id
+        Repo-->>TC: transaction
+        TC-->>UI: 200 transaction
+        UI-->>U: new row appears in the list
+    end

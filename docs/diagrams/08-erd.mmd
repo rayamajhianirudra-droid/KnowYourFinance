@@ -1,0 +1,18 @@
+%% file: 08-erd.mmd
+erDiagram
+    USERS ||--o{ TRANSACTIONS : "owns (planned, not built)"
+
+    USERS {
+        bigint id PK "planned"
+    }
+
+    TRANSACTIONS {
+        bigint id PK "identity, generated"
+        date date "not null"
+        varchar description "not null, already redacted"
+        numeric amount "numeric(19,4), not null, always positive"
+        varchar type "not null, INCOME or EXPENSE"
+        varchar category "one of 14 values, nullable"
+        bigint user_id FK "not null, implicit user 1 for now"
+        boolean low_confidence "default false"
+    }

@@ -1,0 +1,15 @@
+%% file: 10-ai-pipeline.mmd
+flowchart TD
+    A[Parsed row] --> B[Redact digit runs of 8 or more]
+    B --> C[Score redacted description]
+    C --> D{Confidence at least 0.70?}
+    D -- yes --> E[Assign matched category]
+    D -- no --> F[Assign OTHER]
+    C -. empty text or no signal .-> F
+    F --> G[Set lowConfidence flag]
+    E --> H[Duplicate check then save]
+    G --> H
+    H --> I[User sees result]
+    I --> J{Category wrong?}
+    J -- yes --> K[User picks category manually, flag cleared]
+    J -- no --> L[Done]

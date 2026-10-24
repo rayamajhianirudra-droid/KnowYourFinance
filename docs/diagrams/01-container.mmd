@@ -1,0 +1,23 @@
+%% file: 01-container.mmd
+flowchart LR
+    user([Standard User])
+
+    subgraph browser [User's browser]
+        spa["React single page app<br/>Vite build, recharts"]
+    end
+
+    subgraph server [Application server]
+        api["Spring Boot REST API<br/>controllers, services, JPA"]
+    end
+
+    subgraph cloud [Supabase cloud]
+        db[("PostgreSQL<br/>transactions table")]
+    end
+
+    csv[/"Bank statement CSV<br/>exported by the user"/]
+
+    user -->|views and edits| spa
+    user -.->|downloads from own bank| csv
+    csv -.->|user uploads file| spa
+    spa -->|JSON over HTTP, /api| api
+    api -->|JDBC through Session Pooler| db
