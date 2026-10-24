@@ -1,0 +1,35 @@
+%% file: 00-user-journey-import.mmd (from Milestone 2 SRS section 6.2)
+flowchart TD
+    A[User uploads statement file] --> B{File size <= 10MB?}
+    B -- No --> B1[Reject upload with error]
+    B -- Yes --> C[Parse rows]
+
+    C --> D{Row parses successfully?}
+    D -- No --> D1[Skip row, increment skipped count]
+    D1 --> C
+
+    D -- Yes --> E[Redact account/routing-number-like text in description]
+    E --> F[Evaluate categorization confidence]
+
+    F --> G{Confidence >= 0.70?}
+    G -- Yes --> H[Assign matched category]
+    G -- No --> I[Assign fallback category: Other]
+
+    H --> J{Transaction already exists?}
+    I --> J
+
+    J -- Yes --> J1[Skip as duplicate, increment duplicate count]
+    J1 --> K[Continue to next row]
+
+    J -- No --> L[Save transaction record]
+    L --> K
+
+    K --> M{More rows remaining?}
+    M -- Yes --> C
+    M -- No --> N[Return import summary:\nparsed / saved / redacted / skipped / duplicates]
+
+    N --> O[User reviews transactions]
+    O --> P{User wants to change a category?}
+    P -- Yes --> Q[User manually overrides category]
+    Q --> R[Updated transaction reflected in reports]
+    P -- No --> R

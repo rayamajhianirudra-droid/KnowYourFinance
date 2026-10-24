@@ -17,8 +17,11 @@ The team's earlier Milestone 3 draft was written before the final requirements w
 
 All ten diagrams were rendered with the Mermaid command line tool to confirm they parse without syntax errors. Sequence diagrams use real `sequenceDiagram` notation with participants, lifelines, ordered messages, `alt` and `loop` blocks, and notes giving the use case, preconditions and requirement IDs.
 
+## Team contributions and tag
+
+Section 13 records the team's agreed split: AJ Rayamajhi 35%, Ayush Gaire 35%, Sujal Rao 15%, Abdul Mughees 15%, with each member's sections and diagrams listed. The two Milestone 2 diagrams were also extracted into `docs/diagrams/` so every diagram has a source file, and a README there maps each file to its document. The `milestone-3` tag was created and pushed.
+
 ## Still open
 
-- Member roles and per member contributions (sections 1 and 13) are left as "to be confirmed" rather than guessed.
-- The `milestone-3` tag has not been created. It should be created after the team confirms the document is final.
 - The section headings follow the thirteen part structure from the earlier draft. They should be compared against the professor's exact heading list before submission.
+- The tag was created before the contributions section was finalized, so it must be moved to the newest commit before submission.

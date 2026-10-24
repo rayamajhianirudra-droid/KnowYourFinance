@@ -1,0 +1,24 @@
+%% file: 00-use-case.mmd (from Milestone 2 SRS section 6.1)
+graph TD
+    User((Standard User))
+
+    UC1[UC1: Import bank statement]
+    UC2[UC2: Review redacted transactions]
+    UC3[UC3: Correct a transaction's category]
+    UC4[UC4: Add a manual cash transaction]
+    UC5[UC5: Edit or delete a transaction]
+    UC6[UC6: View month/year financial report]
+    UC7[UC7: View multi-month spending trend]
+    UC8[UC8: View auto-generated insights]
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC5
+    User --> UC6
+    User --> UC7
+    User --> UC8
+
+    UC1 -. includes .-> UC2
+    UC6 -. includes .-> UC8

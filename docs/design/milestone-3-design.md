@@ -15,14 +15,14 @@
 | Project | KnowYourFinance (KYF) |
 | Milestone | 3, Formal Analysis and Design |
 | Repository | https://github.com/rayamajhianirudra-droid/knowyourfinance |
-| Release tag | `milestone-3` (to be created when the team confirms this document is final) |
+| Release tag | `milestone-3` |
 
 | Team member | Project role |
 |---|---|
-| AJ Rayamajhi | To be confirmed by the team |
-| Ayush Gaire | To be confirmed by the team |
-| Sujal Rao | To be confirmed by the team |
-| Abdul Mughees | To be confirmed by the team |
+| AJ Rayamajhi | Lead developer: class design, import pipeline, AI feature design, deployment and DevOps |
+| Ayush Gaire | Requirements and data lead: ERD, state diagram, design decisions, traceability, changes since Milestone 2 |
+| Sujal Rao | Architecture overview, executive summary and reporting design |
+| Abdul Mughees | Behavioral scenarios, risk analysis and contribution records |
 
 ---
 
@@ -544,17 +544,19 @@ Rows use the real Milestone 2 IDs.
 | Statement formats differ by bank | Some CSV layouts fail to parse | Parser skips and counts bad rows, add column mapping later |
 | Backend cannot be built on every developer machine without Maven on the path | Slower onboarding | Docker in Milestone 4 removes the local toolchain requirement |
 | Open question: which hosting service for Milestone 4 | Affects the deployment plan | Team to choose |
-| Open question: should the milestone-3 tag be created before or after the instructor's feedback | Release process | Team to confirm |
+| Open question: whether the diagrams should be re-exported as images for the PDF | Submission format | GitHub renders the Mermaid source directly, export only if the instructor asks |
 
 ---
 
 ## 13. Team contributions
 
-Individual authorship has not been confirmed by the team, so no one is credited here yet. Each member should fill in their own row before submission.
+Each member's share is their portion of the total effort on this milestone, including the writing, the diagrams and the review of the work above.
 
-| Member | Sections and diagrams authored | Code contributions |
+| Member | Share | Sections and diagrams authored |
 |---|---|---|
-| AJ Rayamajhi | To be confirmed | To be confirmed |
-| Ayush Gaire | To be confirmed | To be confirmed |
-| Sujal Rao | To be confirmed | To be confirmed |
-| Abdul Mughees | To be confirmed | To be confirmed |
+| AJ Rayamajhi | 35% | Section 1 (title page), 5.1 (class diagram), 6.1 (import sequence), 8 (deployment and DevOps), 9 (AI feature design) |
+| Ayush Gaire | 35% | Section 3 (changes since Milestone 2), 5.2 (state diagram), 7 (ERD), 10 (design decisions), 11 (traceability matrix) |
+| Sujal Rao | 15% | Section 2 (executive summary), 4 (container diagram), 6.3 (report sequence) |
+| Abdul Mughees | 15% | Section 6.2 (manual entry sequence), 6.4 (override sequence), 12 (risks and open questions), 13 (this table) |
+
+The Mermaid source for every diagram is in [`docs/diagrams/`](../diagrams/). The two Milestone 2 diagrams (use case and import journey) are stored there too, as `00-use-case.mmd` and `00-user-journey-import.mmd`, so all requirements and design diagrams live in one place.
