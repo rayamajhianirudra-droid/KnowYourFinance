@@ -540,7 +540,7 @@ Rows use the real Milestone 2 IDs.
 | Duplicate detection has no database constraint, so two simultaneous uploads could both pass the check | Possible duplicate rows | Add a unique index or run imports one at a time per user |
 | The keyword model only knows merchants in its list | More rows land in OTHER | Grow the list from real statements, consider a learned model later |
 | No authentication, every request acts as user 1 | Not safe to expose publicly yet | Add accounts before any public deployment |
-| Row level security is off on the Supabase table | Fine while only the backend connects, unsafe if the database is ever exposed directly | Keep the backend as the only client, revisit with accounts |
+| Supabase exposes a public data API for tables in the public schema | An unprotected table could be read or changed by anyone holding the project URL and public key | Row level security is enabled on the table with no policies and public roles have no privileges. The backend connects as the postgres role, which bypasses it. Add real policies if the frontend ever queries Supabase directly. |
 | Statement formats differ by bank | Some CSV layouts fail to parse | Parser skips and counts bad rows, add column mapping later |
 | Backend cannot be built on every developer machine without Maven on the path | Slower onboarding | Docker in Milestone 4 removes the local toolchain requirement |
 | Open question: which hosting service for Milestone 4 | Affects the deployment plan | Team to choose |
