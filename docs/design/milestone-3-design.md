@@ -417,7 +417,7 @@ erDiagram
 | Environment | What runs | Database |
 |---|---|---|
 | Developer machine | `mvn spring-boot:run` on port 8080 and `npm run dev` on port 5173 | Supabase project (shared hosted database) |
-| CI (GitHub Actions) | Backend CI builds with JDK 21 and runs all tests. Frontend CI installs, lints and builds. | None needed, tests are unit tests with mocks |
+| CI (GitHub Actions) | Backend CI builds with JDK 21 and runs all tests. Frontend CI installs dependencies and builds the app. | None needed, tests are unit tests with mocks |
 | Planned for Milestone 4 | Backend and frontend as Docker images run together with Docker Compose | Supabase project |
 
 ### 8.2 Pipeline and secrets
