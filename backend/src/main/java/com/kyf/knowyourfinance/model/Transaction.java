@@ -28,7 +28,12 @@ import java.time.LocalDate;
  * one column per field below.
  */
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions", indexes = {
+        // Every report and list filters by user and date range, so this
+        // index lets the database jump straight to the right rows instead
+        // of reading the whole table. The same index exists on Supabase.
+        @Index(name = "idx_transactions_user_date", columnList = "userId, date")
+})
 public class Transaction {
 
     /**

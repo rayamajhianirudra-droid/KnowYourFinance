@@ -16,11 +16,13 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,6 +47,9 @@ class StatementImportServiceTest {
 
     @BeforeEach
     void setUp() {
+        // lenient: tests that never reach the save step should not fail
+        // just because this stub went unused.
+        lenient().when(transactionRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         statementImportService = new StatementImportService(
                 new CsvStatementParser(), new AutoCategorizer(), transactionRepository);
     }
@@ -64,9 +69,6 @@ class StatementImportServiceTest {
         // inspect it directly - this is the proof that the saved
         // Transaction's description never contains the original,
         // unredacted account-number-looking text.
-        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                any(), any(), any(), any(), any())).thenReturn(false);
 
         StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
 
@@ -83,10 +85,6 @@ class StatementImportServiceTest {
                 2026-09-02,STARBUCKS #4521,-5.75
                 """;
 
-        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                any(), any(), any(), any(), any())).thenReturn(false);
-
         StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
 
         Transaction saved = response.getTransactions().get(0);
@@ -100,10 +98,6 @@ class StatementImportServiceTest {
                 Date,Description,Amount
                 2026-09-01,PAYROLL DEPOSIT,2450.00
                 """;
-
-        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                any(), any(), any(), any(), any())).thenReturn(false);
 
         StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
 
@@ -122,22 +116,22 @@ class StatementImportServiceTest {
 
         // Pretend the FIRST row is already in the database (e.g. the
         // statement was already imported once) but the second is new.
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                eq(1L), eq(LocalDate.of(2026, 9, 1)), eq("PAYROLL DEPOSIT"),
-                eq(new BigDecimal("2450.00")), eq(TransactionType.INCOME)))
-                .thenReturn(true);
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                eq(1L), eq(LocalDate.of(2026, 9, 2)), eq("STARBUCKS #4521"),
-                eq(new BigDecimal("5.75")), eq(TransactionType.EXPENSE)))
-                .thenReturn(false);
-        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        // The database already holds the payroll row. Note the amount comes
+        // back with four decimals (2450.0000) while the CSV says 2450.00,
+        // which the duplicate check must treat as the same number.
+        when(transactionRepository.findByUserIdAndDateBetween(
+                eq(1L), eq(LocalDate.of(2026, 9, 1)), eq(LocalDate.of(2026, 9, 2))))
+                .thenReturn(List.of(new Transaction(LocalDate.of(2026, 9, 1), "PAYROLL DEPOSIT",
+                        new BigDecimal("2450.0000"), TransactionType.INCOME,
+                        TransactionCategory.INCOME, 1L)));
 
         StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
 
         assertEquals(2, response.getRowsParsed());
         assertEquals(1, response.getTransactionsSaved());
         assertEquals(1, response.getDuplicatesSkipped());
-        verify(transactionRepository, times(1)).save(any());
+        verify(transactionRepository, times(1)).saveAll(any());
+        assertEquals(1, response.getTransactions().size());
     }
 
     @Test
@@ -150,10 +144,6 @@ class StatementImportServiceTest {
                 2026-09-02,BAD AMOUNT,not-a-number
                 2026-09-03,ANOTHER GOOD ROW,20.00
                 """;
-
-        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                any(), any(), any(), any(), any())).thenReturn(false);
 
         StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
 
@@ -172,10 +162,6 @@ class StatementImportServiceTest {
                 2026-09-01,XZQ MERCHANT 991,-15.00
                 """;
 
-        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                any(), any(), any(), any(), any())).thenReturn(false);
-
         StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
 
         Transaction saved = response.getTransactions().get(0);
@@ -191,9 +177,6 @@ class StatementImportServiceTest {
                 2026-09-02,STARBUCKS #4521,-5.75
                 """;
 
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                any(), any(), any(), any(), any())).thenReturn(false);
-
         // persist = false: the preview path. Note save() is never stubbed
         // at all here - if the service called it, Mockito would return
         // null and this test would fail with a NullPointerException,
@@ -203,7 +186,7 @@ class StatementImportServiceTest {
         assertEquals(2, response.getRowsParsed());
         assertEquals(2, response.getTransactionsSaved());
         assertEquals(2, response.getTransactions().size());
-        verify(transactionRepository, never()).save(any());
+        verify(transactionRepository, never()).saveAll(any());
     }
 
     @Test
@@ -213,14 +196,66 @@ class StatementImportServiceTest {
                 2026-09-02,STARBUCKS #4521,-5.75
                 """;
 
-        when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                any(), any(), any(), any(), any())).thenReturn(false);
-
         StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
 
         Transaction saved = response.getTransactions().get(0);
         assertEquals(TransactionCategory.DINING, saved.getCategory());
         assertFalse(saved.isLowConfidence());
+    }
+
+    @Test
+    void checksForDuplicatesWithOneLookupNoMatterHowManyRows() throws IOException {
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-01,PAYROLL DEPOSIT,2450.00
+                2026-09-02,STARBUCKS #4521,-5.75
+                2026-09-03,SHELL GAS STATION,-40.00
+                2026-09-04,NETFLIX,-15.49
+                """;
+
+        statementImportService.importCsv(csv(csvContent), 1L);
+
+        verify(transactionRepository, times(1)).findByUserIdAndDateBetween(
+                eq(1L), eq(LocalDate.of(2026, 9, 1)), eq(LocalDate.of(2026, 9, 4)));
+    }
+
+    @Test
+    void aRowRepeatedInsideTheSameFileIsCountedAsADuplicate() throws IOException {
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-02,STARBUCKS #4521,-5.75
+                2026-09-02,STARBUCKS #4521,-5.75
+                """;
+
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
+
+        assertEquals(1, response.getTransactionsSaved());
+        assertEquals(1, response.getDuplicatesSkipped());
+    }
+
+    @Test
+    void anEmptyFileSkipsTheDatabaseEntirely() throws IOException {
+        StatementImportResponse response = statementImportService.importCsv(
+                csv("Date,Description,Amount\n"), 1L);
+
+        assertEquals(0, response.getRowsParsed());
+        verify(transactionRepository, never()).findByUserIdAndDateBetween(any(), any(), any());
+    }
+
+    @Test
+    void theSummaryCountsRedactedRowsAndSavedRowsSeparately() throws IOException {
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-07,ACH TRANSFER REF 48217536901,-200.00
+                2026-09-08,ACH TRANSFER REF 99887766554,-75.00
+                2026-09-09,STARBUCKS #4521,-5.75
+                """;
+
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
+
+        assertEquals(3, response.getRowsParsed());
+        assertEquals(3, response.getTransactionsSaved());
+        assertEquals(2, response.getRowsRedacted());
+        assertEquals(0, response.getDuplicatesSkipped());
     }
 }

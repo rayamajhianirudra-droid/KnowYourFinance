@@ -124,6 +124,32 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      * can stop as soon as it finds one match instead of loading a full
      * Transaction.
      */
-    boolean existsByUserIdAndDateAndDescriptionAndAmountAndType(
-            Long userId, LocalDate date, String description, BigDecimal amount, TransactionType type);
+    /**
+     * One row per (month, income/expense) for a whole span of months. The
+     * trends chart used to run two queries for every month it drew, so a
+     * six month chart cost twelve round trips to the database. This asks
+     * once and lets the database do the grouping.
+     *
+     * It is a native query because grouping by calendar month is simplest
+     * to say in plain PostgreSQL. The integration test runs it against a
+     * real PostgreSQL so a typo here cannot hide behind mocks.
+     */
+    @Query(value = "SELECT CAST(EXTRACT(YEAR FROM t.date) AS integer) AS year, " +
+            "CAST(EXTRACT(MONTH FROM t.date) AS integer) AS month, " +
+            "t.type AS type, COALESCE(SUM(t.amount), 0) AS total " +
+            "FROM transactions t " +
+            "WHERE t.user_id = :userId AND t.date BETWEEN :start AND :end " +
+            "GROUP BY 1, 2, 3", nativeQuery = true)
+    List<MonthlyTypeTotal> sumByMonthAndType(
+            @Param("userId") Long userId,
+            @Param("start") LocalDate start,
+            @Param("end") LocalDate end);
+
+    /** One row of the grouped trends query above. */
+    interface MonthlyTypeTotal {
+        Integer getYear();
+        Integer getMonth();
+        String getType();
+        BigDecimal getTotal();
+    }
 }

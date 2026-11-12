@@ -6,10 +6,13 @@ import com.kyf.knowyourfinance.model.TransactionType;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The SERVICE layer sits between the controller (which only knows about
@@ -157,16 +160,27 @@ public class DashboardService {
         int clampedMonthsBack = Math.max(1, Math.min(monthsBack, 24));
         YearMonth endMonth = YearMonth.of(year, month);
 
+        // One query for the whole span, then fill in each month from the
+        // result. Months with no transactions simply have no row, so they
+        // start at zero.
+        YearMonth firstMonth = endMonth.minusMonths(clampedMonthsBack - 1L);
+        Map<YearMonth, BigDecimal> incomeByMonth = new HashMap<>();
+        Map<YearMonth, BigDecimal> expenseByMonth = new HashMap<>();
+        for (var row : transactionRepository.sumByMonthAndType(
+                userId, firstMonth.atDay(1), endMonth.atEndOfMonth())) {
+            YearMonth rowMonth = YearMonth.of(row.getYear(), row.getMonth());
+            if (TransactionType.INCOME.name().equals(row.getType())) {
+                incomeByMonth.put(rowMonth, row.getTotal());
+            } else {
+                expenseByMonth.put(rowMonth, row.getTotal());
+            }
+        }
+
         List<MonthlySummary> summaries = new ArrayList<>();
         for (int i = clampedMonthsBack - 1; i >= 0; i--) {
             YearMonth yearMonth = endMonth.minusMonths(i);
-            LocalDate start = yearMonth.atDay(1);
-            LocalDate end = yearMonth.atEndOfMonth();
-
-            var totalIncome = transactionRepository.sumAmountByUserAndTypeAndDateRange(
-                    userId, TransactionType.INCOME, start, end);
-            var totalExpenses = transactionRepository.sumAmountByUserAndTypeAndDateRange(
-                    userId, TransactionType.EXPENSE, start, end);
+            BigDecimal totalIncome = incomeByMonth.getOrDefault(yearMonth, BigDecimal.ZERO);
+            BigDecimal totalExpenses = expenseByMonth.getOrDefault(yearMonth, BigDecimal.ZERO);
 
             summaries.add(new MonthlySummary(
                     yearMonth.getYear(), yearMonth.getMonthValue(),

@@ -5,12 +5,17 @@ import com.kyf.knowyourfinance.model.Transaction;
 import com.kyf.knowyourfinance.model.TransactionType;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The orchestrator for the whole statement-upload feature. This is where
@@ -62,62 +67,84 @@ public class StatementImportService {
      * duplicate check still runs during a preview (read-only, so it's
      * safe), so the preview's duplicate count is accurate too.
      */
+    @Transactional
     public StatementImportResponse importCsv(InputStream csvInputStream, Long userId, boolean persist) throws IOException {
         CsvStatementParser.ParseResult parseResult = csvStatementParser.parse(csvInputStream);
         List<CsvStatementParser.ParsedRow> parsedRows = parseResult.getRows();
 
-        List<Transaction> saved = new ArrayList<>();
+        // Work out which rows are already stored with ONE query for the
+        // whole file's date span, instead of asking the database about
+        // every row separately. A 500 row statement used to cost 500
+        // lookups here; now it costs one.
+        Set<String> knownKeys = loadExistingKeys(userId, parsedRows);
+
+        List<Transaction> toSave = new ArrayList<>();
         int redactedCount = 0;
         int duplicateCount = 0;
 
         for (CsvStatementParser.ParsedRow row : parsedRows) {
-            // Step 1 (security-critical): redact BEFORE this text is used
-            // for anything else - not after categorization, not after
-            // building the Transaction. Right here, first.
             RedactionUtil.RedactionResult redactionResult = RedactionUtil.redact(row.getDescription());
             if (redactionResult.isRedacted()) {
                 redactedCount++;
             }
             String safeDescription = redactionResult.getText();
 
-            // Step 2: now that the text is safe, figure out a category
-            // AND how confident that guess is (FR-301, FR-302).
             var categorization = autoCategorizer.categorizeWithConfidence(safeDescription);
             var category = categorization.getCategory();
 
-            // Step 3: positive amount = income, negative = expense (see
-            // CsvStatementParser's class comment for the convention).
-            // We store amount as always-positive and let `type` carry
-            // the direction - this keeps "total income" / "total
-            // expenses" sums in DashboardService simple additions
-            // instead of every caller having to remember sign rules.
             BigDecimal amount = row.getAmount();
             TransactionType type = amount.signum() < 0 ? TransactionType.EXPENSE : TransactionType.INCOME;
             BigDecimal positiveAmount = amount.abs();
 
-            // Step 4 (duplicate protection): if this exact transaction already
-            // exists for this user, skip it instead of saving a second copy.
-            // Re-uploading the same statement (easy to do by accident - the
-            // file is just sitting in Downloads) should be harmless, not a
-            // source of doubled totals on the dashboard.
-            boolean alreadyExists = transactionRepository.existsByUserIdAndDateAndDescriptionAndAmountAndType(
-                    userId, row.getDate(), safeDescription, positiveAmount, type);
-            if (alreadyExists) {
+            // Set.add returns false when the key was already there, which
+            // covers both "already in the database" and "repeated earlier
+            // in this same file".
+            if (!knownKeys.add(duplicateKey(row.getDate(), safeDescription, positiveAmount, type))) {
                 duplicateCount++;
                 continue;
             }
 
             Transaction transaction = new Transaction(
                     row.getDate(), safeDescription, positiveAmount, type, category, userId);
-            // FR-303: flag it when the category above was a low-confidence
-            // guess rather than a real keyword match, so the frontend can
-            // show the user which ones are worth a second look.
             transaction.setLowConfidence(categorization.isLowConfidence());
-            saved.add(persist ? transactionRepository.save(transaction) : transaction);
+            toSave.add(transaction);
         }
+
+        // One saveAll inside one transaction: either the whole statement
+        // lands or none of it does, instead of a half-imported file if
+        // something fails in the middle.
+        List<Transaction> saved = persist ? transactionRepository.saveAll(toSave) : toSave;
 
         return new StatementImportResponse(
                 parsedRows.size(), saved.size(), redactedCount,
                 parseResult.getSkippedRowCount(), duplicateCount, saved);
+    }
+
+    /** Keys of every stored transaction inside the date span of this file. */
+    private Set<String> loadExistingKeys(Long userId, List<CsvStatementParser.ParsedRow> rows) {
+        Set<String> keys = new HashSet<>();
+        if (rows.isEmpty()) {
+            return keys;
+        }
+        LocalDate first = rows.stream().map(CsvStatementParser.ParsedRow::getDate)
+                .min(Comparator.naturalOrder()).orElseThrow();
+        LocalDate last = rows.stream().map(CsvStatementParser.ParsedRow::getDate)
+                .max(Comparator.naturalOrder()).orElseThrow();
+        for (Transaction existing : transactionRepository.findByUserIdAndDateBetween(userId, first, last)) {
+            keys.add(duplicateKey(existing.getDate(), existing.getDescription(),
+                    existing.getAmount(), existing.getType()));
+        }
+        return keys;
+    }
+
+    /**
+     * The five things that make two transactions "the same": date,
+     * description, amount and type (the user is fixed per call). The
+     * amount goes through stripTrailingZeros because the database hands
+     * back 5.7500 while the CSV gives 5.75, and those must still match.
+     */
+    private static String duplicateKey(LocalDate date, String description,
+                                       BigDecimal amount, TransactionType type) {
+        return date + "|" + description + "|" + amount.stripTrailingZeros().toPlainString() + "|" + type;
     }
 }

@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { getMonthlyReport, getReportRange, listTransactions } from "../api";
 import { categoryColor, categoryLabel, formatCurrency, formatPercent } from "../utils/format";
-import TrendsChart from "./TrendsChart";
-import CategoryDonut from "./CategoryDonut";
+// The two chart components pull in the whole recharts library, which is
+// most of the app's download size. Loading them on demand lets the page
+// shell and the numbers appear first and the charts fill in a moment later.
+const TrendsChart = lazy(() => import("./TrendsChart"));
+const CategoryDonut = lazy(() => import("./CategoryDonut"));
 import EmptyState from "./EmptyState";
 import {
   IncomeIcon, ExpenseIcon, SavingsIcon, RateIcon,
@@ -212,11 +215,15 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
             {report.categoryBreakdown.length === 0 ? (
               <p className="muted chart-empty">No expenses recorded for this period.</p>
             ) : (
-              <CategoryDonut items={report.categoryBreakdown} />
+              <Suspense fallback={<p className="muted">Loading chart...</p>}>
+                <CategoryDonut items={report.categoryBreakdown} />
+              </Suspense>
             )}
           </div>
 
-          <TrendsChart refreshKey={refreshKey} />
+          <Suspense fallback={<p className="muted">Loading chart...</p>}>
+            <TrendsChart refreshKey={refreshKey} />
+          </Suspense>
 
           {topCategories.length > 0 && (
             <div className="panel">
