@@ -145,4 +145,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("start") LocalDate start,
             @Param("end") LocalDate end);
 
+    /** One row of the grouped trends query above. */
+    interface MonthlyTypeTotal {
+        Integer getYear();
+        Integer getMonth();
+        String getType();
+        BigDecimal getTotal();
+    }
 }
