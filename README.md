@@ -18,42 +18,36 @@ docs/       build-log/ — plain-language documentation of every decision made, 
 
 ## Running it locally
 
-The backend connects to a shared Supabase (hosted PostgreSQL) database, so before running it for the first time, set three environment variables with your database credentials:
+The backend connects to a shared Supabase (hosted PostgreSQL) database, so first create a file named `.env` in the project root (copy `.env.example`) and put the database password in it. Never commit `.env`; it is a secret, not code.
+
+### Option 1: Docker (nothing else to install)
 
 ```bash
-export SPRING_DATASOURCE_URL="jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:5432/postgres"
-export SPRING_DATASOURCE_USERNAME="postgres.nmivkmwsxdbszuzbldyp"
-export SPRING_DATASOURCE_PASSWORD="<ask a teammate, or get it from Supabase: Project Settings > Database > Reset database password>"
+docker compose up --build
 ```
 
-Put these in your shell profile (or an `.env` file your terminal loads) so you don't have to retype them every session. **Never commit the password** — it's a secret, not code, which is exactly why it's an environment variable instead of a line in `application.properties`.
+Then open http://localhost:3000. The web page and the API share that one address.
 
-Once those are set, one command starts both the backend and the frontend:
+### Option 2: run the pieces directly
 
-```bash
-./start.sh
-```
-
-Press Ctrl+C once to stop both. The first time you run it, install frontend dependencies first:
+Set the three variables from `.env.example` in your shell (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`), then:
 
 ```bash
-cd frontend && npm install && cd ..
-./start.sh
-```
-
-If you'd rather run them separately (two terminals):
-
-```bash
-# Terminal 1: backend (http://localhost:8080)
-cd backend
-mvn spring-boot:run
+# Terminal 1: backend (http://localhost:8080), needs Java 21 and Maven
+cd backend && mvn spring-boot:run
 
 # Terminal 2: frontend (http://localhost:5173)
-cd frontend
-npm run dev
+cd frontend && npm install && npm run dev
 ```
 
-Note that neither of these runs as a background service. Shutting down or restarting your computer stops both processes, same as closing any other program, so you'll need to run `./start.sh` again next time. That's expected, and it has nothing to do with data persistence — the data now lives in Supabase, not on your machine, so it survives whether or not the backend is running.
+`./start.sh` starts both in one terminal. The data lives in Supabase, so it survives restarts whether or not the app is running.
+
+### Running the tests
+
+```bash
+cd backend  && mvn verify                       # 74 tests; the integration test needs Docker
+cd frontend && npm test                         # 18 tests
+```
 
 ## Core features
 
@@ -77,11 +71,12 @@ Everything is documented as it was built, in order, in [`docs/build-log/`](docs/
 - [Milestone 2: Software Requirements Specification](docs/requirements/milestone-2-srs.md)
 - [Milestone 3: Formal Analysis and Design Document](docs/design/milestone-3-design.md)
 - [Mermaid diagram sources](docs/diagrams/) (one file per diagram, kept in sync with the design document)
+- [Test reports](docs/testing/): Milestone 3 and Milestone 4
 
 ## Course context
 
-This is a COMP 425 (Software Engineering) semester project at SMSU, following a waterfall model across six milestones (Opportunity Study → Requirements Spec → Design Doc → MVP/Docker → Testing/CI-CD → Final Showcase). It's also being used as a personal learning project — every technical decision is documented in plain language, not just implemented.
+This is a COMP 425 (Software Engineering) semester project at SMSU, following a waterfall model across six milestones (Opportunity Study, Requirements Spec, Design Doc, MVP and Docker, Testing and CI/CD, Final Showcase). It's also being used as a personal learning project — every technical decision is documented in plain language, not just implemented.
 
 ## Status
 
-No authentication yet (deliberate — dashboard and core features came first). No PostgreSQL/Docker/CI-CD yet (later milestones). See each build-log entry's "what's intentionally missing" section for the full honest list.
+Milestone 4 adds Docker, a build and publish pipeline, faster imports and trends, and a larger test suite (see [build log 19](docs/build-log/19-milestone-4-docker-ci-and-efficiency.md) and the [Milestone 4 test report](docs/testing/milestone-4-test-report.md)). There is no authentication yet: accounts are out of scope in the requirements specification. See each build-log entry's "what's intentionally missing" section for the full honest list.
