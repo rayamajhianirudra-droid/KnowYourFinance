@@ -17,7 +17,7 @@ RUN mvn -B -q package -DskipTests
 
 # ---------- Stage 2: run it ----------
 # A JRE is enough to run the app. No compiler, no Maven.
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:24-jre
 WORKDIR /app
 
 # Run as an ordinary user instead of root, so a bug in the app cannot
