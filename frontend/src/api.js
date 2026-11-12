@@ -5,12 +5,13 @@
 // real authentication arrives, the "attach the logged-in user's
 // token" logic only has to be added here, not in every component.
 
-// In real deployment this would come from an environment variable
-// (e.g. import.meta.env.VITE_API_BASE_URL) so the frontend can point
-// at a different backend URL in production vs. local dev. Hardcoded
-// for now since there's only ever one backend to talk to while we're
-// building locally.
-const API_BASE = "http://localhost:8080/api";
+// Where the backend lives. By default we call the relative address /api,
+// which works in both setups we use: the Vite dev server forwards /api
+// to the backend on port 8080 (see vite.config.js), and in Docker the
+// web server forwards /api to the backend container (see nginx.conf).
+// To point at a backend somewhere else, set VITE_API_BASE_URL when
+// building, for example https://api.example.com/api.
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 // TEMPORARY: there's no login yet (a deliberate decision - see
 // backend build-log 01), so every request pretends to be "user 1".
@@ -36,7 +37,10 @@ export async function uploadStatement(file, { preview = false } = {}) {
   );
 
   if (!response.ok) {
-    throw new Error(`Upload failed (${response.status})`);
+    // The backend explains itself, for example "Uploaded file is too large
+    // (10MB limit)". Show that instead of a bare status code.
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Upload failed (${response.status})`);
   }
   return response.json();
 }

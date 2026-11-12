@@ -21,9 +21,16 @@ on:
     paths:
       - "backend/**"
 
+# If a newer push arrives while an older run is still going, stop the old
+# one. It would only report on code that is already out of date.
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       # Downloads the repo's code onto the runner - without this step
@@ -49,3 +56,13 @@ jobs:
       - name: Build and run tests
         working-directory: backend
         run: mvn -B verify
+
+      # Keep the test reports even when a test fails, so the cause can be
+      # read from the run page without re-running anything.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: backend/target/surefire-reports
+          retention-days: 14

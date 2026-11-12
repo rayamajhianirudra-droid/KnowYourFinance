@@ -1,0 +1,23 @@
+# Runs the whole app with one command:  docker compose up --build
+# Then open http://localhost:3000
+#
+# The database is Supabase (hosted), so there is no database container.
+# Put the three DB settings in a file named .env next to this one; see
+# .env.example. The .env file is ignored by git because it holds a secret.
+services:
+  backend:
+    build: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?Set SPRING_DATASOURCE_URL in .env}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?Set SPRING_DATASOURCE_USERNAME in .env}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set SPRING_DATASOURCE_PASSWORD in .env}
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

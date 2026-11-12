@@ -1,0 +1,2 @@
+# Secrets: never commit the real database password
+.env

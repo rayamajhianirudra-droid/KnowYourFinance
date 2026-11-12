@@ -18,6 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -131,26 +134,77 @@ class DashboardServiceTest {
         assertEquals(new BigDecimal("-200.00"), report.getNetSavings());
     }
 
+    /** Builds one row of the grouped trends query, as the database would return it. */
+    private static TransactionRepository.MonthlyTypeTotal row(int year, int month, String type, String total) {
+        return new TransactionRepository.MonthlyTypeTotal() {
+            public Integer getYear() { return year; }
+            public Integer getMonth() { return month; }
+            public String getType() { return type; }
+            public BigDecimal getTotal() { return new BigDecimal(total); }
+        };
+    }
+
     @Test
     void trendsReturnsOneSummaryPerMonthOldestFirst() {
         Long userId = 1L;
 
-        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
-                eq(userId), eq(TransactionType.INCOME), any(), any()))
-                .thenReturn(new BigDecimal("1000.00"));
-        when(transactionRepository.sumAmountByUserAndTypeAndDateRange(
-                eq(userId), eq(TransactionType.EXPENSE), any(), any()))
-                .thenReturn(new BigDecimal("400.00"));
+        when(transactionRepository.sumByMonthAndType(
+                eq(userId), eq(LocalDate.of(2026, 7, 1)), eq(LocalDate.of(2026, 9, 30))))
+                .thenReturn(List.of(
+                        row(2026, 7, "INCOME", "1000.00"), row(2026, 7, "EXPENSE", "400.00"),
+                        row(2026, 8, "INCOME", "1000.00"), row(2026, 8, "EXPENSE", "400.00"),
+                        row(2026, 9, "INCOME", "1000.00"), row(2026, 9, "EXPENSE", "400.00")));
 
         var trends = dashboardService().getTrends(userId, 2026, 9, 3);
 
-        // monthsBack=3 ending at September 2026 -> July, August, September,
-        // in that order, so a chart can read the list left to right.
         assertEquals(3, trends.size());
         assertEquals(7, trends.get(0).getMonth());
         assertEquals(8, trends.get(1).getMonth());
         assertEquals(9, trends.get(2).getMonth());
         assertEquals(new BigDecimal("600.00"), trends.get(2).getNetSavings());
+    }
+
+    @Test
+    void trendsAsksTheDatabaseOnceNoMatterHowManyMonths() {
+        when(transactionRepository.sumByMonthAndType(any(), any(), any())).thenReturn(List.of());
+
+        dashboardService().getTrends(1L, 2026, 9, 12);
+
+        verify(transactionRepository, times(1)).sumByMonthAndType(any(), any(), any());
+        verify(transactionRepository, never()).sumAmountByUserAndTypeAndDateRange(any(), any(), any(), any());
+    }
+
+    @Test
+    void aMonthWithNoTransactionsShowsZerosInsteadOfBeingDropped() {
+        when(transactionRepository.sumByMonthAndType(any(), any(), any()))
+                .thenReturn(List.of(row(2026, 9, "EXPENSE", "50.00")));
+
+        var trends = dashboardService().getTrends(1L, 2026, 9, 2);
+
+        assertEquals(2, trends.size());
+        assertEquals(0, trends.get(0).getTotalIncome().signum());
+        assertEquals(0, trends.get(0).getTotalExpenses().signum());
+        assertEquals(new BigDecimal("-50.00"), trends.get(1).getNetSavings());
+    }
+
+    @Test
+    void trendsNeverLooksBackMoreThanTwentyFourMonths() {
+        when(transactionRepository.sumByMonthAndType(any(), any(), any())).thenReturn(List.of());
+
+        var trends = dashboardService().getTrends(1L, 2026, 9, 500);
+
+        assertEquals(24, trends.size());
+        // 24 months ending September 2026 begins in October 2024.
+        verify(transactionRepository).sumByMonthAndType(
+                eq(1L), eq(LocalDate.of(2024, 10, 1)), eq(LocalDate.of(2026, 9, 30)));
+    }
+
+    @Test
+    void trendsAlwaysReturnsAtLeastOneMonth() {
+        when(transactionRepository.sumByMonthAndType(any(), any(), any())).thenReturn(List.of());
+
+        assertEquals(1, dashboardService().getTrends(1L, 2026, 9, 0).size());
+        assertEquals(1, dashboardService().getTrends(1L, 2026, 9, -5).size());
     }
 
     @Test
