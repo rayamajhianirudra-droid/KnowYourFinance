@@ -1,7 +1,7 @@
 # ---------- Stage 1: build the jar ----------
 # This stage has Maven and the full JDK. None of it ends up in the final
 # image, so the image people run stays small.
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /build
 
 # Copy only pom.xml first and download the dependencies. Docker caches
