@@ -46,7 +46,7 @@ jobs:
       # not get a token that can write packages.
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
