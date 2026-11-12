@@ -3,8 +3,10 @@ package com.kyf.knowyourfinance.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.Instant;
@@ -65,6 +67,22 @@ public class GlobalExceptionHandler {
      * the full exception server-side (not shown to the user) so it's
      * still debuggable, just not exposed.
      */
+    /**
+     * A missing or malformed query parameter (no userId, a month that is
+     * not a number, a date in the wrong format) is the caller's mistake,
+     * so it gets a 400 that names the parameter. Before this handler the
+     * catch-all below turned these into a misleading 500 "something went
+     * wrong", which the new StatementControllerTest caught.
+     */
+    @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<Map<String, Object>> handleBadParameter(Exception ex) {
+        String name = ex instanceof MissingServletRequestParameterException missing
+                ? missing.getParameterName()
+                : ((MethodArgumentTypeMismatchException) ex).getName();
+        return ResponseEntity.badRequest().body(errorBody(
+                "Missing or invalid request parameter: " + name, null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
         return ResponseEntity.internalServerError().body(errorBody(

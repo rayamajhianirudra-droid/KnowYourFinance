@@ -22,6 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -82,7 +83,8 @@ class StatementControllerTest {
     void missingUserIdIsAClientErrorNotACrash() throws Exception {
         mockMvc.perform(multipart("/api/statements/upload")
                         .file(csvFile("Date,Description,Amount\n".getBytes())))
-                .andExpect(status().is4xxClientError());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Missing or invalid request parameter: userId"));
     }
 
     @Test
