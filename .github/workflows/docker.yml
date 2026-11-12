@@ -60,7 +60,7 @@ jobs:
       # The cache keeps layers such as "downloaded Maven dependencies"
       # between runs, so most builds take a fraction of the first one.
       - name: Build (and push on main)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.service }}
           push: ${{ github.event_name == 'push' }}
