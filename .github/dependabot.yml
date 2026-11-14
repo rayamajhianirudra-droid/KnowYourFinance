@@ -1,25 +1,59 @@
-# Opens a pull request automatically when a library, base image or
+# Opens pull requests automatically when a library, base image or
 # workflow action has a newer version, so security fixes do not wait
 # for someone to remember to check.
+#
+# Tuned after the first batch of 14 pull requests: minor and patch updates
+# are grouped into one pull request per area, and major version jumps that
+# would change the Java or Node version, or move to Spring Boot 4, are
+# ignored until we plan them on purpose. The app targets Java 21 and
+# Node 22, which are long-term-support releases.
 version: 2
 updates:
   - package-ecosystem: maven
     directory: /backend
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      backend-libraries:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      frontend-libraries:
+        update-types: [minor, patch]
+
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: weekly
+    ignore:
+      # Stay on the Java 21 long-term-support line.
+      - dependency-name: "maven"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
   - package-ecosystem: docker
     directory: /frontend
     schedule:
       interval: weekly
+    ignore:
+      # Stay on the Node 22 long-term-support line.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      workflow-actions:
+        update-types: [minor, patch]
