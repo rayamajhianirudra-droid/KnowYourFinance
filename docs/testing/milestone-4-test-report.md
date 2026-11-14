@@ -26,7 +26,7 @@
 | Backend | JDK 21, Maven, JUnit 5, Mockito, Spring MockMvc, Testcontainers with PostgreSQL 16 |
 | Frontend | Node 22, Vitest with jsdom |
 | Database for integration tests | A throwaway PostgreSQL container started by the test. Supabase is never touched by tests. |
-| Final run | Commit `f80302d`. Backend CI run 43325059684, Frontend CI run 43325060292, Docker images run 43325059778. All three succeeded. |
+| Final run | Commit `f80302d`. Backend CI run 43325059684, Frontend CI run 43325060292 (interface refresh: run 43563173586), Docker images run 43325059778. All three succeeded. |
 
 ## 3. Results
 
@@ -49,7 +49,7 @@
 
 The Milestone 3 total was 52. 52 plus 22 new tests is 74. All 52 earlier tests still pass after the refactor, with the import and trend tests updated to describe the new behavior.
 
-### 3.2 Frontend (Vitest, 18 tests, 0 failures)
+### 3.2 Frontend (Vitest, 18 tests at the time, 31 after the interface refresh, 0 failures)
 
 | Test file | Tests | What it checks |
 |---|---|---|
@@ -117,6 +117,19 @@ cd frontend && npm ci && npm run lint && npm test && npm run build
 docker compose up --build          # needs a .env file, see .env.example
 ```
 
-## 9. Conclusion
+## 9. Addendum: interface refresh (November 13, 2026)
+
+| Check | Result |
+|---|---|
+| Frontend tests | 31 pass (13 new: date helpers 3, app navigation and upload page 6, dashboard 4) |
+| Defects fixed and now covered by tests | Date defaults used UTC and showed tomorrow's date in the evening; unchanged totals showed a red arrow; month name was lowercase |
+| Automated accessibility scan (axe-core), 4 screens at laptop and phone size | First run: 3 violations on the upload screen (heading order, unlabeled file input, control nested in a button). Final run: none |
+| Lint | No errors, the same 4 warnings as before |
+| Build | Succeeds |
+| Visual review | Screenshots of every screen at 1366 and 390 pixels wide, before and after |
+
+Not covered: a real phone, Safari, or a screen reader. The scan checks rules a program can check, such as names, labels and contrast, not whether the app is pleasant to use.
+
+## 10. Conclusion
 
 All automated checks pass on the final commit: 74 backend tests, 18 frontend tests, both Docker images, and the frontend container smoke test. The new tests found one real defect (500 instead of 400) and the pipeline caught two of our own mistakes before they reached main. The largest remaining gap is that the full containerized stack has not yet been started end to end against Supabase.

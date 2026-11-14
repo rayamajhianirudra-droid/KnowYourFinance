@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import UploadStatement from "./components/UploadStatement";
 import Dashboard from "./components/Dashboard";
@@ -14,7 +14,7 @@ const TABS = [
 ];
 
 /**
- * The app shell: a persistent header (brand + what the product does),
+ * The app shell: one slim top bar (brand, nav, privacy promise),
  * a tab-based nav (no routing library - four views, swapped by state),
  * and the active view. `refreshKey` is the one piece of shared state:
  * bump it after anything that changes the transaction data (an import,
@@ -47,50 +47,64 @@ function App() {
     setActiveTab("transactions");
   }
 
+  // When the person switches views, move keyboard and screen reader focus
+  // to the new page and scroll back to the top. Without this the old
+  // scroll position stays and a screen reader never hears that the
+  // content changed. Skipped on first load so the page does not steal focus.
+  const mainRef = useRef(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0 });
+    mainRef.current?.focus({ preventScroll: true });
+  }, [activeTab]);
+
   return (
     <div className="app-shell">
-      <header className="site-header">
-        <div className="content-container site-header__inner">
-          <div className="site-header__row">
-            <div className="brand">
-              <span className="brand__mark" aria-hidden="true">
-                <DashboardIcon width={18} height={18} />
-              </span>
-              <span className="brand__name">KnowYourFinance</span>
-            </div>
-            <p className="trust-badge">
-              <LockIcon width={14} height={14} aria-hidden="true" />
-              Your finances. Your data. Your control.
-            </p>
+      <a className="skip-link" href="#main">Skip to content</a>
+
+      {/* One slim bar on top: brand, the four views, and the privacy promise.
+          On phones the same nav moves to the bottom of the screen, where a
+          thumb can reach it, with a small label under each icon. */}
+      <header className="topbar">
+        <div className="content-container topbar__inner">
+          <div className="brand">
+            <span className="brand__mark" aria-hidden="true">
+              <DashboardIcon width={18} height={18} />
+            </span>
+            <span className="brand__name">KnowYourFinance</span>
           </div>
-          <p className="site-header__tagline">Understand where your money goes.</p>
-          <p className="site-header__sub">
-            Upload your statement and turn transactions into clear financial insights.
+
+          <nav className="site-nav" aria-label="Main">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`nav-item${isActive ? " nav-item--active" : ""}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon width={18} height={18} aria-hidden="true" />
+                  <span className="nav-item__label">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <p className="trust-badge">
+            <LockIcon width={14} height={14} aria-hidden="true" />
+            Your finances. Your data. Your control.
           </p>
         </div>
       </header>
 
-      <nav className="site-nav" aria-label="Main">
-        <div className="content-container site-nav__inner">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                className={`nav-item${isActive ? " nav-item--active" : ""}`}
-                onClick={() => setActiveTab(tab.id)}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <Icon width={17} height={17} aria-hidden="true" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
-      <main className="site-main">
+      <main id="main" ref={mainRef} tabIndex={-1} className="site-main">
         <div className="content-container">
           {activeTab === "dashboard" && (
             <Dashboard

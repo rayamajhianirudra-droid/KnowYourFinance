@@ -263,7 +263,7 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
           <div className="skeleton-line skeleton-line--short" />
         </div>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
 
       {!loading && transactions.length === 0 && (
         <EmptyState
@@ -381,8 +381,8 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
 
                 return (
                   <tr key={t.id}>
-                    <td className="cell-date">{t.date}</td>
-                    <td className="cell-description">{t.description}</td>
+                    <td className="cell-date" data-label="Date">{t.date}</td>
+                    <td className="cell-description" data-label="Description">{t.description}</td>
                     <td>
                       <select
                         className="category-select"
@@ -409,7 +409,7 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
                         {t.type === "INCOME" ? "Income" : "Expense"}
                       </span>
                     </td>
-                    <td className={`amount-col amount amount--${t.type.toLowerCase()}`}>
+                    <td className={`amount-col amount amount--${t.type.toLowerCase()}`} data-label="Amount">
                       {t.type === "EXPENSE" ? "-" : "+"}{formatCurrency(t.amount)}
                     </td>
                     <td className="actions-col">

@@ -1,12 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { getMonthlyReport, getReportRange, listTransactions } from "../api";
-import { categoryColor, categoryLabel, formatCurrency, formatPercent } from "../utils/format";
+import { categoryLabel, formatCurrency, formatPercent } from "../utils/format";
 // The two chart components pull in the whole recharts library, which is
 // most of the app's download size. Loading them on demand lets the page
 // shell and the numbers appear first and the charts fill in a moment later.
 const TrendsChart = lazy(() => import("./TrendsChart"));
 const CategoryDonut = lazy(() => import("./CategoryDonut"));
 import EmptyState from "./EmptyState";
+import { toLocalDateInput } from "../utils/dates";
 import {
   IncomeIcon, ExpenseIcon, SavingsIcon, RateIcon,
   ArrowUpIcon, ArrowDownIcon,
@@ -25,7 +26,7 @@ const PERIODS = [
 ];
 
 function startOfMonthInput(date) {
-  return date.toISOString().slice(0, 10);
+  return toLocalDateInput(date);
 }
 
 /**
@@ -135,15 +136,11 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
     (report.categoryBreakdown && report.categoryBreakdown.length > 0)
   );
 
-  const topCategories = report
-    ? [...report.categoryBreakdown].sort((a, b) => Number(b.total) - Number(a.total)).slice(0, 5)
-    : [];
-  const topCategoriesMax = topCategories.length > 0 ? Number(topCategories[0].total) : 1;
 
   return (
     <div className="page">
       <h1 className="page-title">Dashboard</h1>
-      <p className="page-subtitle">Your financial overview for {periodLabel.toLowerCase()}.</p>
+      <p className="page-subtitle">Your financial overview for {periodLabel}.</p>
 
       <PeriodSelector
         periodType={periodType}
@@ -158,8 +155,8 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
         onRangeEnd={setRangeEnd}
       />
 
-      {loading && <p className="muted">Loading your overview...</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && <p className="muted" role="status">Loading your overview...</p>}
+      {error && <p className="error" role="alert">{error}</p>}
 
       {report && !loading && !hasAnyTransactions && (
         <EmptyState
@@ -173,11 +170,14 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
       {report && !loading && hasAnyTransactions && (
         <>
           {report.insights && report.insights.length > 0 && (
-            <ul className="insights-list">
-              {report.insights.map((insight, index) => (
-                <li key={index}>{insight}</li>
-              ))}
-            </ul>
+            <section className="highlights" aria-label="Highlights">
+              <h2 className="highlights__title">Highlights</h2>
+              <ul className="highlights__list">
+                {report.insights.map((insight, index) => (
+                  <li key={index}>{insight}</li>
+                ))}
+              </ul>
+            </section>
           )}
 
           <div className="stat-cards">
@@ -210,6 +210,11 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
             <RateCard rate={savingsRate} previousRate={previousSavingsRate} />
           </div>
 
+          <Suspense fallback={<p className="muted">Loading chart...</p>}>
+            <TrendsChart refreshKey={refreshKey} />
+          </Suspense>
+
+          <div className="dash-columns">
           <div className="panel">
             <h2 className="panel-title">Spending by category</h2>
             {report.categoryBreakdown.length === 0 ? (
@@ -220,35 +225,6 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
               </Suspense>
             )}
           </div>
-
-          <Suspense fallback={<p className="muted">Loading chart...</p>}>
-            <TrendsChart refreshKey={refreshKey} />
-          </Suspense>
-
-          {topCategories.length > 0 && (
-            <div className="panel">
-              <h2 className="panel-title">Top spending categories</h2>
-              <ul className="top-categories">
-                {topCategories.map((item) => (
-                  <li key={item.category}>
-                    <div className="top-categories__row">
-                      <span className="top-categories__name">{categoryLabel(item.category)}</span>
-                      <span className="top-categories__amount">{formatCurrency(item.total)}</span>
-                    </div>
-                    <div className="top-categories__track">
-                      <div
-                        className="top-categories__fill"
-                        style={{
-                          width: `${(Number(item.total) / topCategoriesMax) * 100}%`,
-                          background: categoryColor(item.category),
-                        }}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           <div className="panel">
             <div className="panel-header">
@@ -282,6 +258,7 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
               </ul>
             )}
           </div>
+          </div>
         </>
       )}
     </div>
@@ -295,12 +272,12 @@ function PeriodSelector({
 }) {
   return (
     <div className="period-selector">
-      <div className="period-selector__tabs" role="tablist" aria-label="Reporting period">
+      <div className="period-selector__tabs" role="group" aria-label="Reporting period">
         {PERIODS.map((p) => (
           <button
             key={p.id}
-            role="tab"
-            aria-selected={periodType === p.id}
+            type="button"
+            aria-pressed={periodType === p.id}
             className={`period-tab${periodType === p.id ? " period-tab--active" : ""}`}
             onClick={() => onChange(p.id)}
           >
@@ -342,6 +319,13 @@ function PeriodSelector({
   );
 }
 
+// Maps "was this change good?" (true, false or null for no change) to the
+// CSS modifier used on the small comparison line.
+function changeTone(isGoodChange) {
+  if (isGoodChange === null) return "neutral";
+  return isGoodChange ? "good" : "bad";
+}
+
 function StatCard({ icon: Icon, label, value, previousValue, hasComparison, tone, invertComparisonTone }) {
   const numericValue = Number(value);
   const numericPrevious = Number(previousValue);
@@ -352,7 +336,9 @@ function StatCard({ icon: Icon, label, value, previousValue, hasComparison, tone
   // invertComparisonTone flips which direction counts as positive so
   // the arrow/color always means "this is good" or "this is bad," not
   // just "this went up."
-  const isGoodChange = change === null ? null : invertComparisonTone ? change < 0 : change > 0;
+  // Exactly zero is "no change", which is neither good nor bad. It used to
+  // fall into the "bad" branch and show a red up arrow for 0.0%.
+  const isGoodChange = change === null || change === 0 ? null : invertComparisonTone ? change < 0 : change > 0;
 
   return (
     <div className="stat-card">
@@ -362,9 +348,9 @@ function StatCard({ icon: Icon, label, value, previousValue, hasComparison, tone
       <span className="stat-card__label">{label}</span>
       <span className={`stat-card__value stat-card__value--${tone}`}>{formatCurrency(numericValue)}</span>
       {showComparison && (
-        <span className={`stat-card__change stat-card__change--${isGoodChange ? "good" : "bad"}`}>
-          {change >= 0 ? <ArrowUpIcon width={13} height={13} /> : <ArrowDownIcon width={13} height={13} />}
-          {formatPercent(Math.abs(change))} from last period
+        <span className={`stat-card__change stat-card__change--${changeTone(isGoodChange)}`}>
+          {change === 0 ? null : change > 0 ? <ArrowUpIcon width={13} height={13} /> : <ArrowDownIcon width={13} height={13} />}
+          {change === 0 ? "No change from last period" : `${formatPercent(Math.abs(change))} from last period`}
         </span>
       )}
     </div>
@@ -374,7 +360,7 @@ function StatCard({ icon: Icon, label, value, previousValue, hasComparison, tone
 function RateCard({ rate, previousRate }) {
   const showComparison = previousRate !== null;
   const delta = showComparison ? rate - previousRate : null;
-  const isGoodChange = delta === null ? null : delta >= 0;
+  const isGoodChange = delta === null || delta === 0 ? null : delta > 0;
 
   return (
     <div className="stat-card">
@@ -384,9 +370,9 @@ function RateCard({ rate, previousRate }) {
       <span className="stat-card__label">Savings Rate</span>
       <span className="stat-card__value">{rate.toFixed(1)}%</span>
       {showComparison && (
-        <span className={`stat-card__change stat-card__change--${isGoodChange ? "good" : "bad"}`}>
-          {delta >= 0 ? <ArrowUpIcon width={13} height={13} /> : <ArrowDownIcon width={13} height={13} />}
-          {formatPercent(Math.abs(delta))} pts from last period
+        <span className={`stat-card__change stat-card__change--${changeTone(isGoodChange)}`}>
+          {delta === 0 ? null : delta > 0 ? <ArrowUpIcon width={13} height={13} /> : <ArrowDownIcon width={13} height={13} />}
+          {delta === 0 ? "No change from last period" : `${formatPercent(Math.abs(delta))} pts from last period`}
         </span>
       )}
     </div>

@@ -130,20 +130,42 @@ function UploadStatement({ onImported }) {
             <p className="dropzone__title">Upload bank statement</p>
             <p className="dropzone__hint">Drop your statement here, or browse files.</p>
             <p className="dropzone__formats">Supported format: CSV</p>
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".csv"
-              className="sr-only"
-              onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-            />
           </div>
+          {/* The real file input sits beside the drop area, not inside it,
+              because a control nested inside a button confuses screen
+              readers. The drop area opens it on click or Enter. */}
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".csv"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          />
           {stage === "error" && (
-            <p className="error">
+            <p className="error" role="alert">
               <AlertIcon width={16} height={16} aria-hidden="true" /> {error}
             </p>
           )}
         </>
+      )}
+
+      {(stage === "idle" || stage === "error") && (
+        <section className="upload-help" aria-label="How the upload works">
+          <div className="upload-help__item">
+            <h2>What to upload</h2>
+            <p>A CSV file with a date, a description and an amount for each row. Files up to 10 MB are accepted.</p>
+          </div>
+          <div className="upload-help__item">
+            <h2>What we remove</h2>
+            <p>Long account or routing style numbers are replaced with a placeholder before anything is saved.</p>
+          </div>
+          <div className="upload-help__item">
+            <h2>What happens next</h2>
+            <p>You see a preview first. Rows already on file are skipped, so uploading twice never doubles your totals.</p>
+          </div>
+        </section>
       )}
 
       {busy && (
