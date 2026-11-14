@@ -26,7 +26,7 @@
 | Backend | JDK 21, Maven, JUnit 5, Mockito, Spring MockMvc, Testcontainers with PostgreSQL 16 |
 | Frontend | Node 22, Vitest with jsdom |
 | Database for integration tests | A throwaway PostgreSQL container started by the test. Supabase is never touched by tests. |
-| Final run | Commit `f80302d`. Backend CI run 43325059684, Frontend CI run 43325060292, Docker images run 43325059778. All three succeeded. |
+| Final run | Commit `f80302d`. Backend CI run 43325059684, Frontend CI run 43325060292 (interface refresh: run 43563173586), Docker images run 43325059778. All three succeeded. |
 
 ## 3. Results
 
@@ -49,7 +49,7 @@
 
 The Milestone 3 total was 52. 52 plus 22 new tests is 74. All 52 earlier tests still pass after the refactor, with the import and trend tests updated to describe the new behavior.
 
-### 3.2 Frontend (Vitest, 18 tests, 0 failures)
+### 3.2 Frontend (Vitest, 18 tests at the time, 31 after the interface refresh, 0 failures)
 
 | Test file | Tests | What it checks |
 |---|---|---|
