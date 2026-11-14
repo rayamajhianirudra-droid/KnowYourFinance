@@ -87,7 +87,7 @@ Build: succeeds. The main script file is 258 kB (78 kB compressed); the recharts
 | FR-404 delete | Not covered | Covered (204 on success, 404 when missing, nothing deleted) |
 | FR-504 trend limit | Partly | Covered: 24 month cap, minimum of 1, empty months show zero |
 | Repository queries | Not covered | Covered against real PostgreSQL |
-| NFR-01, NFR-02 performance | Not covered | Still not measured with timings |
+| NFR-01, NFR-02 performance | Not covered | Measured in CI against PostgreSQL (section 6a). Both limits met, with the latency caveat stated there. |
 
 ## 6. Efficiency evidence
 
@@ -99,12 +99,30 @@ These are counts of work done, taken from the code and the tests, not stopwatch 
 | Trends for M months | 2 times M | 1 | `trendsAsksTheDatabaseOnceNoMatterHowManyMonths` |
 | Request holds a database connection | Whole request | Released after the query | `open-in-view=false` (setting, not tested) |
 
+## 6a. Timing measurements (November 14, 2026)
+
+`PerformanceTest` runs against a throwaway PostgreSQL 16 in GitHub Actions and prints a PERF line for each case. Limits: NFR-01 reports under 2,500 ms with 5,000 rows, NFR-02 import of 1,000 rows under 5,000 ms.
+
+| Case | Result | Statements prepared |
+|---|---|---|
+| Month report, 5,000 rows, first call | 18 ms | 6 |
+| Month report, second call | 10 ms | 6 |
+| Custom range over all 5,000 rows | 18 ms | not recorded |
+| Trends for 24 months | 31 ms | 1 query |
+| Re-import of 1,000 duplicate rows | 60 ms | 1 |
+| Import of 1,000 new rows, before change | 320 ms (local run) | 1,001 |
+| Import of 1,000 new rows, after change | 283 ms | 22 |
+
+The change: ids now come from a database sequence (allocation size 50) instead of an identity column, and Hibernate batches inserts (batch size 50, `reWriteBatchedInserts`). An identity column forces one insert statement per row because the database must return each id immediately.
+
+Caveat: the CI database is on the same machine, so the saving looks small in milliseconds (320 ms to 283 ms). Against a remote database each statement costs a network round trip, so cutting 1,001 statements to 22 matters far more there. The round trip time to Supabase was not measured, so no remote time is claimed.
+
 ## 7. What has not been tested
 
 1. **Nothing was run against the live Supabase database from the backend container.** Tests use mocks or a throwaway PostgreSQL. The new trends query was run once by hand on Supabase and parsed correctly, but that database had no 2026 data for user 1 at that moment, so it returned no rows.
 2. **The full stack with `docker compose up` has not been run.** The Docker engine was not available in the build sandbox, so only the CI image builds and the frontend smoke test cover Docker. The backend image has not been started.
 3. **The 15 manual end to end cases in the Milestone 3 report are still unrun.**
-4. **No timing measurements.** Efficiency claims are about the number of database calls and file sizes only. NFR-01 and NFR-02 remain unmeasured.
+4. **Timings come from a CI database with almost no network delay.** The Supabase database is remote, so real times are higher by roughly the number of statements multiplied by the round trip time. That round trip was not measured.
 5. **No component tests for screens.** Frontend tests cover the API layer and formatting helpers only.
 6. **No security or load testing.** Accounts and authentication are still out of scope (SRS).
 7. The index created on Supabase and the pooled connection limit have not been observed under load.
