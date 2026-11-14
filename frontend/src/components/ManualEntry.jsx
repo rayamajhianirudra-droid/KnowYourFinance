@@ -1,3 +1,4 @@
+import { todayInput } from "../utils/dates";
 import { useState } from "react";
 import { addTransaction } from "../api";
 import { categoryLabel } from "../utils/format";
@@ -9,7 +10,7 @@ const CATEGORIES = [
   "TRAVEL", "INCOME", "TRANSFER", "OTHER",
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayInput;
 
 /**
  * Manual transaction entry - how someone who pays with cash (or just

@@ -21,24 +21,48 @@
   padding-right: var(--space-4);
 }
 
-.site-header {
-  background: var(--color-brand);
-  color: var(--color-text-on-brand);
-  padding: var(--space-4) 0 var(--space-3);
+/* Skip link: invisible until a keyboard user tabs to it, then it jumps
+   past the navigation straight to the page content. */
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: -60px;
+  z-index: 100;
+  background: var(--color-surface);
+  color: var(--color-brand);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
 }
 
-.site-header__row {
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+/* One slim bar replaces the old tall banner plus separate tab strip. It
+   stays at the top while scrolling so every view is one click away. */
+.topbar {
+  background: var(--color-brand);
+  color: var(--color-text-on-brand);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.topbar__inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  gap: var(--space-4);
+  min-height: 60px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  flex-shrink: 0;
 }
 
 .brand__mark {
@@ -48,7 +72,7 @@
 }
 
 .brand__name {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-text-on-brand);
@@ -58,72 +82,56 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
   font-size: 0.78rem;
   color: var(--color-text-on-brand);
-  opacity: 0.85;
-}
-
-.site-header__tagline {
-  margin-top: var(--space-3);
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--color-text-on-brand);
-  max-width: 34ch;
-}
-
-.site-header__sub {
-  margin-top: 6px;
-  font-size: 0.92rem;
-  color: var(--color-text-on-brand);
   opacity: 0.8;
-  max-width: 48ch;
+  white-space: nowrap;
 }
 
 .site-nav {
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.site-nav__inner {
   display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
+  gap: 4px;
 }
 
 .nav-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 13px 4px;
-  margin-right: var(--space-3);
+  gap: 8px;
+  padding: 9px 14px;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-on-brand);
+  opacity: 0.78;
+  font-family: inherit;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, opacity 0.15s ease;
 }
 
 .nav-item:hover {
-  color: var(--color-text);
+  opacity: 1;
+  background: rgba(248, 247, 243, 0.08);
 }
 
 .nav-item--active {
-  color: var(--color-interactive);
-  border-bottom-color: var(--color-interactive);
+  opacity: 1;
+  background: rgba(248, 247, 243, 0.16);
   font-weight: 600;
 }
 
 .site-main {
   flex: 1;
-  padding: var(--space-4) 0 var(--space-6);
+  padding: var(--space-5) 0 var(--space-6);
+}
+
+/* The main area receives focus when the view changes, but it is not a
+   control, so it does not need a visible ring. */
+.site-main:focus {
+  outline: none;
 }
 
 /* ---------- Page scaffolding ---------- */
@@ -327,26 +335,6 @@
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-/* ---------- Insights ---------- */
-
-.insights-list {
-  list-style: none;
-  padding: 0;
-  margin: var(--space-4) 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.insights-list li {
-  background: var(--color-surface-soft);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 10px var(--space-3);
-  font-size: 0.88rem;
-  color: var(--color-text);
 }
 
 /* ---------- Period selector ---------- */
@@ -1272,28 +1260,12 @@
     padding-right: var(--space-3);
   }
 
-  .site-header__tagline {
-    font-size: 1.25rem;
-  }
-
-  .stat-cards {
-    grid-template-columns: 1fr;
-  }
-
   .field-row {
     grid-template-columns: 1fr;
   }
 
   .summary-grid {
     grid-template-columns: 1fr;
-  }
-
-  .nav-item span {
-    display: none;
-  }
-
-  .nav-item {
-    padding: 13px 10px;
   }
 
   .filter-bar {
@@ -1305,4 +1277,325 @@
   .donut-legend__pct {
     width: auto;
   }
+}
+
+
+/* ============================================================
+   Milestone 4 refresh: structure, accessibility, small screens
+   ============================================================ */
+
+/* ---------- Keyboard focus ---------- */
+/* One clear ring for every control, shown only for keyboard users. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-info);
+  outline-offset: 2px;
+}
+
+.topbar :where(button, a):focus-visible {
+  outline-color: var(--color-text-on-brand);
+}
+
+/* ---------- Highlights (replaces the grey insight bars) ---------- */
+.highlights {
+  margin-top: var(--space-4);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-interactive);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.highlights__title {
+  font-size: 0.9rem;
+  color: var(--color-brand);
+}
+
+.highlights__list {
+  list-style: disc;
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.92rem;
+}
+
+/* ---------- Comparison line with no change ---------- */
+.stat-card__change--neutral {
+  color: var(--color-text-muted);
+}
+
+/* ---------- Dashboard two column row ---------- */
+/* Category breakdown and recent transactions sit side by side on wide
+   screens so the dashboard is shorter and easier to scan. */
+.dash-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.dash-columns .panel {
+  margin-top: var(--space-4);
+}
+
+.recent-list__desc {
+  max-width: 100%;
+}
+
+/* Amounts must never wrap onto two lines. */
+.recent-list__item .amount,
+.amount-col {
+  white-space: nowrap;
+}
+
+/* ---------- Upload page: what we read ---------- */
+.upload-help {
+  margin-top: var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.upload-help__item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.upload-help__item h2 {
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.upload-help__item p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Tablet ---------- */
+@media (max-width: 960px) {
+  .dash-columns {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .trust-badge {
+    display: none;
+  }
+
+  .site-nav {
+    margin-left: auto;
+  }
+
+  .upload-help {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 720px) {
+  .topbar__inner {
+    min-height: 52px;
+  }
+
+  /* Navigation moves to the bottom edge, within thumb reach. */
+  .site-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    margin: 0;
+    gap: 0;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 12px rgba(24, 32, 29, 0.08);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .nav-item {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-height: 56px;
+    padding: 8px 2px;
+    border-radius: 0;
+    color: var(--color-text-muted);
+    opacity: 1;
+    font-size: 0.68rem;
+  }
+
+  .nav-item:hover {
+    background: none;
+    color: var(--color-text);
+  }
+
+  .nav-item--active {
+    background: var(--color-surface-soft);
+    color: var(--color-interactive);
+  }
+
+  .site-main {
+    padding: var(--space-4) 0 calc(88px + env(safe-area-inset-bottom));
+  }
+
+  .page-title {
+    font-size: 1.4rem;
+  }
+
+  /* Four small cards in a 2 by 2 grid instead of four tall stacked ones. */
+  .stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+
+  .stat-card {
+    padding: var(--space-2);
+  }
+
+  .stat-card__value {
+    font-size: 1.15rem;
+  }
+
+  .stat-card__change {
+    font-size: 0.72rem;
+  }
+
+  .panel {
+    padding: var(--space-3);
+  }
+
+  /* The search box was stretching to 220px tall in the stacked layout
+     because its flex-basis meant width in a row and height in a column. */
+  .filter-bar .search-field {
+    flex: 0 0 auto;
+  }
+
+  /* Comfortable touch targets for the controls people tap most. */
+  .period-tab,
+  .btn,
+  button.primary-btn,
+  .category-select,
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  .row-actions button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* The transactions table becomes a list of cards, so nothing is cut off
+     and nobody has to scroll sideways to reach the amount or the buttons. */
+  .table-panel {
+    background: none;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .transactions-table,
+  .transactions-table tbody {
+    display: block;
+  }
+
+  .transactions-table thead {
+    position: absolute;
+    left: -9999px;
+  }
+
+  .transactions-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px var(--space-2);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .transactions-table td {
+    padding: 0;
+    border: none;
+  }
+
+  .transactions-table .cell-date {
+    grid-column: 1;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  .transactions-table .amount-col {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+  }
+
+  .transactions-table .cell-description {
+    grid-column: 1 / -1;
+    font-weight: 600;
+  }
+
+  /* The desktop rule gives this column a 1% width. Inside a card it must
+     span the full width, or the buttons spill out of the left edge. */
+  .transactions-table .actions-col {
+    grid-column: 1 / -1;
+    width: auto;
+    text-align: right;
+    padding-top: var(--space-1);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .transactions-table .actions-col .row-actions {
+    justify-content: flex-end;
+  }
+
+  .table-panel {
+    padding: 0;
+  }
+}
+
+/* ---------- Spacing fixes found in the screenshot review ---------- */
+.trends-grid {
+  margin-top: var(--space-4);
+}
+
+.dash-columns .donut-chart-wrap {
+  flex: 0 0 200px;
+  width: 200px;
+}
+
+.dash-columns .donut-legend {
+  min-width: 200px;
+}
+
+.donut-legend__name {
+  white-space: nowrap;
+}
+
+/* Small fixes from the accessibility review */
+.trust-note svg {
+  flex-shrink: 0;
+}
+
+/* The dashed edge of the drop area was too faint against the page. */
+.dropzone {
+  border-color: var(--color-info);
 }
