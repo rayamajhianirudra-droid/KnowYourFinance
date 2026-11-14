@@ -46,7 +46,7 @@ cd frontend && npm install && npm run dev
 
 ```bash
 cd backend  && mvn verify                       # 74 tests; the integration test needs Docker
-cd frontend && npm test                         # 31 tests
+cd frontend && npm test                         # 35 tests
 ```
 
 ## Core features

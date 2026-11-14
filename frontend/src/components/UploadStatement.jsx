@@ -1,3 +1,4 @@
+import PageHero from "./PageHero";
 import { useRef, useState } from "react";
 import { uploadStatement } from "../api";
 import { formatCurrency } from "../utils/format";
@@ -94,12 +95,11 @@ function UploadStatement({ onImported }) {
 
   return (
     <div className="page">
-      <h1 className="page-title">Upload Statement</h1>
-      <p className="page-subtitle">
-        Export a CSV from your bank's website and drop it here - we read it,
-        remove anything that looks like an account or routing number, and
-        turn the rest into categorized transactions.
-      </p>
+      <PageHero
+        title="Upload Statement"
+        subtitle="Export a CSV from your bank's website and drop it here. We read it, remove anything that looks like an account or routing number, and turn the rest into categorized transactions."
+        art
+      />
 
       <p className="trust-note">
         <LockIcon width={15} height={15} aria-hidden="true" />

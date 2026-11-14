@@ -1,3 +1,4 @@
+import PageHero from "./PageHero";
 import { useEffect, useMemo, useState } from "react";
 import { listTransactions, updateTransaction, deleteTransaction } from "../api";
 import { formatCurrency, categoryLabel } from "../utils/format";
@@ -195,12 +196,10 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
 
   return (
     <div className="page">
-      <h1 className="page-title">Transactions</h1>
-      <p className="page-subtitle">
-        Every transaction on file. Fix a category from its dropdown,
-        edit a row with the pencil, or remove one entirely — every
-        change updates your dashboard immediately.
-      </p>
+      <PageHero
+        title="Transactions"
+        subtitle="Every transaction on file. Fix a category from its dropdown, edit a row with the pencil, or remove one entirely. Every change updates your dashboard immediately."
+      />
 
       <div className="panel filter-bar">
         <label className="search-field">
