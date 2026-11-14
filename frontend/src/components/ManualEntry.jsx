@@ -1,3 +1,4 @@
+import PageHero from "./PageHero";
 import { todayInput } from "../utils/dates";
 import { useState } from "react";
 import { addTransaction } from "../api";
@@ -51,12 +52,10 @@ function ManualEntry({ onAdded }) {
 
   return (
     <div className="page">
-      <h1 className="page-title">Add Transaction</h1>
-      <p className="page-subtitle">
-        Paid cash, or missed something your statement wouldn't catch? Log it
-        here and it counts toward your totals and category breakdown exactly
-        like an imported transaction.
-      </p>
+      <PageHero
+        title="Add Transaction"
+        subtitle="Paid cash, or missed something your statement wouldn't catch? Log it here and it counts toward your totals and category breakdown exactly like an imported transaction."
+      />
 
       <form className="panel entry-form" onSubmit={handleSubmit} noValidate>
         <div className="type-toggle" role="radiogroup" aria-label="Transaction type">

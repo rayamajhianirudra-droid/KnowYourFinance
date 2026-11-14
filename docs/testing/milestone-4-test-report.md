@@ -121,7 +121,7 @@ docker compose up --build          # needs a .env file, see .env.example
 
 | Check | Result |
 |---|---|
-| Frontend tests | 31 pass (13 new: date helpers 3, app navigation and upload page 6, dashboard 4) |
+| Frontend tests | 35 pass after the illustration (13 new: date helpers 3, app navigation and upload page 6, dashboard 4) |
 | Defects fixed and now covered by tests | Date defaults used UTC and showed tomorrow's date in the evening; unchanged totals showed a red arrow; month name was lowercase |
 | Automated accessibility scan (axe-core), 4 screens at laptop and phone size | First run: 3 violations on the upload screen (heading order, unlabeled file input, control nested in a button). Final run: none |
 | Lint | No errors, the same 4 warnings as before |

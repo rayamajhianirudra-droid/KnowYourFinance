@@ -7,10 +7,11 @@ import { categoryLabel, formatCurrency, formatPercent } from "../utils/format";
 const TrendsChart = lazy(() => import("./TrendsChart"));
 const CategoryDonut = lazy(() => import("./CategoryDonut"));
 import EmptyState from "./EmptyState";
+import PageHero from "./PageHero";
 import { toLocalDateInput } from "../utils/dates";
 import {
   IncomeIcon, ExpenseIcon, SavingsIcon, RateIcon,
-  ArrowUpIcon, ArrowDownIcon,
+  ArrowUpIcon, ArrowDownIcon, UploadIcon, PlusIcon,
 } from "./Icons";
 
 const MONTH_NAMES = [
@@ -139,8 +140,29 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
 
   return (
     <div className="page">
-      <h1 className="page-title">Dashboard</h1>
-      <p className="page-subtitle">Your financial overview for {periodLabel}.</p>
+      <PageHero
+        title="Dashboard"
+        subtitle={`Your financial overview for ${periodLabel}.`}
+        art
+      >
+        {/* The two things people do most, one click from the top of the page. */}
+        {(onUploadClick || onAddClick) && (
+          <div className="page-hero__actions">
+            {onUploadClick && (
+              <button type="button" className="btn btn--primary" onClick={onUploadClick}>
+                <UploadIcon width={16} height={16} aria-hidden="true" />
+                Upload statement
+              </button>
+            )}
+            {onAddClick && (
+              <button type="button" className="btn btn--secondary" onClick={onAddClick}>
+                <PlusIcon width={16} height={16} aria-hidden="true" />
+                Add transaction
+              </button>
+            )}
+          </div>
+        )}
+      </PageHero>
 
       <PeriodSelector
         periodType={periodType}

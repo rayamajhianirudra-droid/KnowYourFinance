@@ -32,3 +32,15 @@ Screenshots before and after on a 1366 pixel wide laptop screen and a 390 pixel 
 ## Not checked
 
 The screenshots used sample data in a headless browser. The new layout has not been viewed on a real phone or in Safari, and the automated scan does not replace trying the app with a screen reader.
+
+## Addendum: money illustration (Nov 14, 2026)
+
+The Dashboard and Upload pages now open with a soft sage header card that holds the page title and a small drawn picture of a dollar bill with a bank card resting on it. The Transactions and Add Transaction pages keep a plain heading, so the picture stays a special touch on two screens.
+
+- **It is original art, not a copy.** It is drawn in code as simple vector shapes (`MoneyArt.jsx`), so there is no image file to download. The bill has no portrait, seal or serial number. The card has no bank logo.
+- **The card number is redaction bars.** This matches what the app does to account numbers, so the picture says something about the product. A test confirms the drawing contains no digits at all.
+- **Same colors.** It uses the existing green, ivory and sage tokens. The chip uses the gold already used for Dining in the charts, now named `--color-gold`.
+- **Motion.** The card settles onto the bill once when the page opens, and not at all for people who have asked their system for reduced motion.
+- **Phones.** The picture moves behind the text at low opacity instead of taking its own column.
+- **Quick actions.** The Dashboard header also holds "Upload statement" and "Add transaction" buttons, so the two most common actions are one click from the top of the page.
+- **Accessibility.** The drawing is hidden from screen readers. The automated scan still reports no problems on all four screens at laptop and phone size. Frontend tests are now 35.
