@@ -91,3 +91,37 @@ jobs:
       - name: Show container logs if something failed
         if: failure()
         run: docker logs kyf-web
+
+  # Follows the grading steps exactly: copy .env.example to .env, run
+  # "docker compose up --build", use the app, then stop it and start it
+  # again to prove the data survives in the database volume.
+  full-stack-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start the whole app
+        run: |
+          cp .env.example .env
+          docker compose up --build -d --wait --wait-timeout 300
+      - name: Health check through the web address
+        run: curl -fsS http://localhost:3000/api/health
+      - name: Save a transaction and read it back
+        run: |
+          curl -fsS -X POST http://localhost:3000/api/transactions \
+            -H "Content-Type: application/json" \
+            -d '{"userId":1,"date":"2026-11-01","description":"Smoke test coffee","amount":4.5,"type":"EXPENSE"}'
+          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "Smoke test coffee"
+      - name: Invalid input is rejected with a message
+        run: |
+          code=$(curl -s -o /tmp/err.json -w "%{http_code}" -X POST http://localhost:3000/api/transactions \
+            -H "Content-Type: application/json" -d '{"userId":1}')
+          test "$code" = "400"
+      - name: Data survives stop and start
+        run: |
+          docker compose down
+          docker compose up -d --wait --wait-timeout 300
+          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "Smoke test coffee"
+      - name: Show logs if something failed
+        if: failure()
+        run: docker compose logs --tail=100

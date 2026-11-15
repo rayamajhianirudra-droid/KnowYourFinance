@@ -18,19 +18,22 @@ docs/       build-log/ — plain-language documentation of every decision made, 
 
 ## Running it locally
 
-The backend connects to a shared Supabase (hosted PostgreSQL) database, so first create a file named `.env` in the project root (copy `.env.example`) and put the database password in it. Never commit `.env`; it is a secret, not code.
+Settings live in a file named `.env` in the project root. Copy `.env.example` to `.env` first. Never commit `.env`. With Docker (Option 1) the database runs in its own container and the defaults work as they are. To use the hosted Supabase database instead, fill in the three `SPRING_DATASOURCE_*` lines in `.env`.
 
 ### Option 1: Docker (nothing else to install)
 
 ```bash
+cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
 docker compose up --build
 ```
 
 Then open http://localhost:3000. The web page and the API share that one address.
 
+Stop the app with `docker compose down`. Your transactions stay in the `kyf-db-data` Docker volume and are there when you start it again. `docker compose down -v` also deletes the volume, which erases the data.
+
 ### Option 2: run the pieces directly
 
-Set the three variables from `.env.example` in your shell (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`), then:
+Set the three Supabase variables from `.env.example` in your shell (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`), then:
 
 ```bash
 # Terminal 1: backend (http://localhost:8080), needs Java 21 and Maven
@@ -40,7 +43,7 @@ cd backend && mvn spring-boot:run
 cd frontend && npm install && npm run dev
 ```
 
-`./start.sh` starts both in one terminal. The data lives in Supabase, so it survives restarts whether or not the app is running.
+`./start.sh` starts both in one terminal. In Option 2 the data lives in Supabase, so it survives restarts whether or not the app is running.
 
 ### Running the tests
 

@@ -1,16 +1,40 @@
 # Runs the whole app with one command:  docker compose up --build
 # Then open http://localhost:3000
 #
-# The database is Supabase (hosted), so there is no database container.
-# Put the three DB settings in a file named .env next to this one; see
-# .env.example. The .env file is ignored by git because it holds a secret.
+# Three services: a PostgreSQL database, the Spring Boot backend and the
+# web frontend. Copy .env.example to .env first (the .env file is ignored
+# by git). The database files live in the named volume "kyf-db-data", so
+# transactions survive "docker compose down" and restarts. To wipe the data
+# on purpose, run "docker compose down -v".
+#
+# To use the hosted Supabase database instead of the local one, set the
+# three SPRING_DATASOURCE_* lines in .env (see .env.example). The local
+# database container still starts but the backend ignores it.
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kyf}
+      POSTGRES_USER: ${POSTGRES_USER:-kyf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env first}
+    volumes:
+      - kyf-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build: ./backend
     environment:
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?Set SPRING_DATASOURCE_URL in .env}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?Set SPRING_DATASOURCE_USERNAME in .env}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set SPRING_DATASOURCE_PASSWORD in .env}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://db:5432/${POSTGRES_DB:-kyf}}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-${POSTGRES_USER:-kyf}}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-${POSTGRES_PASSWORD}}
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -21,3 +45,6 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  kyf-db-data:

@@ -1,0 +1,23 @@
+# Manual test checklist
+
+Run these with the app started by `docker compose up --build`, at http://localhost:3000. Use the sample file `docs/build-log/sample-statement.csv`. Write Pass or Fail in the Result column and the date and tester's name below the table.
+
+| ID | Scenario | Steps | Expected result | Result |
+|---|---|---|---|---|
+| M-01 | Import a statement | Open Upload. Choose the sample file and press Upload. | Transactions appear. The summary shows parsed, saved, redacted, skipped and duplicate counts. | |
+| M-02 | Account numbers are hidden | After M-01, open Transactions and find a row that had a long digit reference. | The description shows the redaction placeholder and none of the original digits. | |
+| M-03 | Duplicate import | Upload the same file again. | No new rows are created. The duplicate count equals the number of rows. | |
+| M-04 | One bad row in a file | Make a copy of the sample file, break one amount (for example "abc"), and upload it. | The good rows are saved and one row is reported as skipped. | |
+| M-05 | File too large | Upload a file bigger than 10 MB. | A clear error message appears and nothing is saved. | |
+| M-06 | Correct a category | Find a row marked as auto guessed and change its category. | The category updates, the badge disappears, and the reports use the new category. | |
+| M-07 | Add a cash transaction | Open Add, fill in every field, and save. | The transaction shows in the list and in that month's report. | |
+| M-08 | Missing field | Open Add and submit with the amount empty. | The form is rejected and the amount field shows what is missing. | |
+| M-09 | Edit a transaction | Edit the date, description and amount of a row and save. | The row shows the new values. | |
+| M-10 | Delete a transaction | Delete a row and confirm. | The row disappears and the totals update. | |
+| M-11 | Past month and empty month | On the Dashboard, pick a past month, then a month with no data. | The past month shows totals and a category breakdown. The empty month shows zeros. | |
+| M-12 | Custom date range | Pick a custom start and end date. | The report covers exactly that range. | |
+| M-13 | Spending insights | Compare a month with a large change against one with a small change. | The large change shows a trend note. The small change does not. | |
+| M-14 | Data survives a restart | Run `docker compose down`, then `docker compose up`, then reload the page. | All earlier transactions are still there. | |
+| M-15 | Keyboard use | Using only the Tab and Enter keys, move through the menu and open each page. | Every page can be reached and a visible outline shows where you are. | |
+
+Tester: ____________________  Date: ____________________
