@@ -133,6 +133,24 @@ describe("one bad file in the batch", () => {
 });
 
 describe("saving and errors", () => {
+  it("says so when the same file is uploaded again and does not allow saving", async () => {
+    api.uploadStatements.mockResolvedValue({
+      files: [{
+        fileName: "jan.csv",
+        success: true,
+        message: null,
+        result: { rowsParsed: 10, transactionsSaved: 0, rowsRedacted: 0, duplicatesSkipped: 10, rowsSkipped: 0, transactions: [] },
+      }],
+    });
+    render(<UploadStatement />);
+
+    chooseFiles([makeFile("jan.csv")]);
+
+    await screen.findByText("Review before saving");
+    expect(screen.getAllByText(/already imported/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Confirm & save/ }).disabled).toBe(true);
+  });
+
   it("shows a summary for every file after saving", async () => {
     api.uploadStatements.mockResolvedValue({ files: [okFile("jan.csv"), okFile("feb.csv", ["2026-02-01", "2026-02-02"])] });
     render(<UploadStatement />);

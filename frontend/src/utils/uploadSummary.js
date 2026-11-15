@@ -7,6 +7,10 @@ function summarizeOne(result) {
   const dates = transactions.map((t) => t.date).sort();
   return {
     count: result.transactionsSaved,
+    // Every readable row was already on record: the same file again.
+    alreadyImported:
+      result.transactionsSaved === 0 && result.duplicatesSkipped > 0 &&
+      result.duplicatesSkipped >= result.rowsParsed,
     dateRange: dates.length > 0 ? `${dates[0]} – ${dates[dates.length - 1]}` : "—",
     totalIncome: transactions
       .filter((t) => t.type === "INCOME")
@@ -36,6 +40,7 @@ export function summarizeBatch(response) {
     okCount: ok.length,
     failedCount: files.length - ok.length,
     count: sum("count"),
+    alreadyImportedCount: ok.filter((f) => f.alreadyImported).length,
     totalIncome: sum("totalIncome"),
     totalExpenses: sum("totalExpenses"),
     rowsRedacted: sum("rowsRedacted"),

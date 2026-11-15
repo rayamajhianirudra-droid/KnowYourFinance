@@ -37,7 +37,11 @@ function FileResults({ files, doneLabel }) {
             )}
             <span>{f.fileName}</span>
           </div>
-          {f.success ? (
+          {f.success && f.alreadyImported ? (
+            <p className="file-results__detail">
+              Already imported: this file is already on record, so nothing was added and nothing was duplicated.
+            </p>
+          ) : f.success ? (
             <p className="file-results__detail">
               {doneLabel}: {plural(f.count, "transaction")}, {f.dateRange}
               {f.duplicatesSkipped > 0 && `, ${plural(f.duplicatesSkipped, "duplicate")} skipped`}
@@ -254,6 +258,13 @@ function UploadStatement({ onImported }) {
             {preview.rowsRedacted > 0 && (
               <li>{plural(preview.rowsRedacted, "line")} had sensitive numbers automatically redacted.</li>
             )}
+            {preview.alreadyImportedCount > 0 && (
+              <li>
+                {preview.alreadyImportedCount === 1
+                  ? "1 file has already been imported, so it will add nothing."
+                  : `${preview.alreadyImportedCount} files have already been imported, so they will add nothing.`}
+              </li>
+            )}
             {preview.duplicatesSkipped > 0 && (
               <li>{plural(preview.duplicatesSkipped, "row")} already in your account will be skipped.</li>
             )}
@@ -273,7 +284,7 @@ function UploadStatement({ onImported }) {
               type="button"
               className="btn btn--primary"
               onClick={handleConfirm}
-              disabled={preview.okCount === 0}
+              disabled={preview.okCount === 0 || preview.count === 0}
             >
               Confirm &amp; save {preview.okCount > 1 ? `${preview.okCount} files` : ""}
             </button>
@@ -288,12 +299,18 @@ function UploadStatement({ onImported }) {
         <div className="panel upload-result upload-result--done">
           <div className="success-badge">
             <CheckCircleIcon width={18} height={18} aria-hidden="true" />
-            {preview.okCount === 1 ? "Statement imported" : "Statements imported"}
+            {preview.count === 0
+              ? "Already imported"
+              : preview.okCount === 1 ? "Statement imported" : "Statements imported"}
           </div>
-          <p>
-            <strong>{preview.count}</strong> transaction{preview.count === 1 ? "" : "s"} added
-            from {plural(preview.okCount, "file")}, covering {preview.dateRange}.
-          </p>
+          {preview.count === 0 ? (
+            <p>These statements are already on record. Nothing was added, so your data is unchanged.</p>
+          ) : (
+            <p>
+              <strong>{preview.count}</strong> transaction{preview.count === 1 ? "" : "s"} added
+              from {plural(preview.okCount, "file")}, covering {preview.dateRange}.
+            </p>
+          )}
           <FileResults files={preview.files} doneLabel="Added" />
           <button type="button" className="btn btn--secondary" onClick={handleCancel}>
             Upload more statements
