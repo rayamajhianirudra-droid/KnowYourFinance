@@ -60,6 +60,17 @@ class InsightsServiceTest {
     }
 
     @Test
+    void formatsLargeAmountsWithThousandsSeparators() {
+        MonthlyReportResponse current = report(
+                new BigDecimal("10000.00"), BigDecimal.ZERO, List.of());
+        MonthlyReportResponse previous = report(BigDecimal.ZERO, BigDecimal.ZERO, List.of());
+
+        List<String> insights = insightsService.generate(current, previous);
+
+        assertTrue(insights.stream().anyMatch(s -> s.contains("You saved $10,000.00 this month.")));
+    }
+
+    @Test
     void flagsASignificantSpendingIncreaseComparedToLastMonth() {
         MonthlyReportResponse current = report(
                 new BigDecimal("2000.00"), new BigDecimal("1200.00"), List.of());

@@ -120,6 +120,6 @@ public class InsightsService {
     }
 
     private String money(BigDecimal amount) {
-        return "$" + amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        return "$" + String.format(java.util.Locale.US, "%,.2f", amount.setScale(2, RoundingMode.HALF_UP));
     }
 }

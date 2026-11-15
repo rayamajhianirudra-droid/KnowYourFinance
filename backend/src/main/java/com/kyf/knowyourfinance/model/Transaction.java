@@ -58,7 +58,7 @@ public class Transaction {
      * uploaded/parsed). LocalDate (not a full timestamp) because bank
      * statements give a date, not a time of day.
      */
-    @NotNull
+    @NotNull(message = "Choose a date.")
     private LocalDate date;
 
     /**
@@ -69,7 +69,7 @@ public class Transaction {
      * statement line somehow contained extra sensitive digits, they're
      * stripped before this is ever saved.
      */
-    @NotBlank
+    @NotBlank(message = "Describe what this was.")
     private String description;
 
     /**
@@ -80,7 +80,7 @@ public class Transaction {
      * tiny rounding error compounding across thousands of transactions is
      * unacceptable. BigDecimal does exact decimal arithmetic instead.
      */
-    @NotNull
+    @NotNull(message = "Enter an amount.")
     @Column(precision = 19, scale = 4)
     private BigDecimal amount;
 

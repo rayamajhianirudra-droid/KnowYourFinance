@@ -68,12 +68,19 @@ public class AutoCategorizer {
         KEYWORD_MAP.put("restaurant", TransactionCategory.DINING);
         KEYWORD_MAP.put("cafe", TransactionCategory.DINING);
         KEYWORD_MAP.put("coffee", TransactionCategory.DINING);
+        KEYWORD_MAP.put("doordash", TransactionCategory.DINING);
+        KEYWORD_MAP.put("grubhub", TransactionCategory.DINING);
+        KEYWORD_MAP.put("chipotle", TransactionCategory.DINING);
+        KEYWORD_MAP.put("olive garden", TransactionCategory.DINING);
+        KEYWORD_MAP.put("pizza", TransactionCategory.DINING);
 
         KEYWORD_MAP.put("walmart", TransactionCategory.GROCERIES);
         KEYWORD_MAP.put("safeway", TransactionCategory.GROCERIES);
         KEYWORD_MAP.put("grocery", TransactionCategory.GROCERIES);
         KEYWORD_MAP.put("kroger", TransactionCategory.GROCERIES);
         KEYWORD_MAP.put("aldi", TransactionCategory.GROCERIES);
+        KEYWORD_MAP.put("whole foods", TransactionCategory.GROCERIES);
+        KEYWORD_MAP.put("trader joe", TransactionCategory.GROCERIES);
 
         KEYWORD_MAP.put("rent", TransactionCategory.RENT_MORTGAGE);
         KEYWORD_MAP.put("mortgage", TransactionCategory.RENT_MORTGAGE);
@@ -82,6 +89,7 @@ public class AutoCategorizer {
         KEYWORD_MAP.put("water bill", TransactionCategory.UTILITIES);
         KEYWORD_MAP.put("utility", TransactionCategory.UTILITIES);
         KEYWORD_MAP.put("internet", TransactionCategory.UTILITIES);
+        KEYWORD_MAP.put("gas bill", TransactionCategory.UTILITIES);
 
         KEYWORD_MAP.put("amazon", TransactionCategory.SHOPPING);
         KEYWORD_MAP.put("target", TransactionCategory.SHOPPING);

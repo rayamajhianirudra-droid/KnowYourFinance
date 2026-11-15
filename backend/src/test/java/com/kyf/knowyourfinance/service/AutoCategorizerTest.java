@@ -26,6 +26,14 @@ class AutoCategorizerTest {
     }
 
     @Test
+    void recognizesDeliveryAndCommonFoodMerchants() {
+        assertEquals(TransactionCategory.DINING, categorizer.categorize("DOORDASH ORDER"));
+        assertEquals(TransactionCategory.DINING, categorizer.categorize("OLIVE GARDEN"));
+        assertEquals(TransactionCategory.GROCERIES, categorizer.categorize("WHOLE FOODS MARKET"));
+        assertEquals(TransactionCategory.UTILITIES, categorizer.categorize("WATER AND GAS BILL"));
+    }
+
+    @Test
     void isCaseInsensitive() {
         assertEquals(TransactionCategory.DINING, categorizer.categorize("starbucks #4521"));
     }
