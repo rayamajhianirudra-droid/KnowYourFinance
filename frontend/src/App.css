@@ -1791,3 +1791,60 @@
 .page-hero--art {
   min-height: 170px;
 }
+
+/* ---------- Several statements at once ---------- */
+.file-results {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.file-results__item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+}
+
+.file-results__item--failed {
+  border-color: var(--color-negative);
+}
+
+.file-results__name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  color: var(--color-positive);
+  overflow-wrap: anywhere;
+}
+
+.file-results__name span {
+  color: var(--color-text);
+}
+
+.file-results__item--failed .file-results__name {
+  color: var(--color-negative);
+}
+
+.file-results__detail {
+  margin: 4px 0 0 23px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.file-results__item--failed .file-results__detail {
+  color: var(--color-negative);
+}
+
+.upload-notice {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-gold);
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+}

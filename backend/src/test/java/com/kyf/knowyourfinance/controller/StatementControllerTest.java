@@ -131,24 +131,24 @@ class StatementControllerTest {
         when(statementImportService.importFile(any(InputStream.class), any(), eq(1L), eq(true)))
                 .thenReturn(EMPTY_RESULT);
 
-        var request = multipart("/api/statements/upload-batch").param("userId", "1");
+        var request = multipart("/api/statements/upload-batch");
         for (int i = 1; i <= 12; i++) {
             request.file(batchFile("month" + i + ".csv", "Date,Description,Amount\n".getBytes()));
         }
 
-        mockMvc.perform(request)
+        mockMvc.perform(request.param("userId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.files.length()").value(12));
     }
 
     @Test
     void thirteenFilesAreRejectedWithAClearMessageAndNothingIsImported() throws Exception {
-        var request = multipart("/api/statements/upload-batch").param("userId", "1");
+        var request = multipart("/api/statements/upload-batch");
         for (int i = 1; i <= 13; i++) {
             request.file(batchFile("month" + i + ".csv", "Date,Description,Amount\n".getBytes()));
         }
 
-        mockMvc.perform(request)
+        mockMvc.perform(request.param("userId", "1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         "You can upload at most 12 files at a time. You chose 13."));

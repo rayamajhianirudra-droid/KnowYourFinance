@@ -45,6 +45,39 @@ export async function uploadStatement(file, { preview = false } = {}) {
   return response.json();
 }
 
+// The most statements the upload page accepts at once, for example a
+// year of monthly statements. The backend enforces the same limit.
+export const MAX_UPLOAD_FILES = 12;
+
+// File types the backend can read. Used for the file picker's filter and
+// for the text on the upload page.
+export const ACCEPTED_EXTENSIONS = [".csv", ".tsv", ".txt", ".xlsx"];
+
+/**
+ * Uploads up to 12 statements in one request. Returns the backend's
+ * BatchImportResponse: one entry per file with either an import summary
+ * or a message saying why that file failed, so one bad file does not
+ * hide the results of the others.
+ */
+export async function uploadStatements(files, { preview = false } = {}) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+
+  const response = await fetch(
+    `${API_BASE}/statements/upload-batch?userId=${CURRENT_USER_ID}&preview=${preview}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Upload failed (${response.status})`);
+  }
+  return response.json();
+}
+
 /**
  * Fetches the month/year income-vs-expense report - the app's core
  * differentiator feature.

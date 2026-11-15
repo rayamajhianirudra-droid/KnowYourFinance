@@ -6,6 +6,8 @@ import {
   getTrends,
   updateTransaction,
   uploadStatement,
+  uploadStatements,
+  MAX_UPLOAD_FILES,
 } from "../api";
 
 // Replaces the browser's fetch with a fake so these tests never need a
@@ -103,5 +105,29 @@ describe("addTransaction and updateTransaction", () => {
     const [url, options] = globalThis.fetch.mock.calls[0];
     expect(url).toBe("/api/transactions/9");
     expect(options.method).toBe("PUT");
+  });
+});
+
+describe("uploading several statements", () => {
+  it("sends every file in one request to the batch endpoint", async () => {
+    respondWith(200, { files: [] });
+    const a = new File(["x"], "a.csv");
+    const b = new File(["y"], "b.xlsx");
+
+    await uploadStatements([a, b], { preview: true });
+
+    const [url, init] = globalThis.fetch.mock.calls[0];
+    expect(url).toBe("/api/statements/upload-batch?userId=1&preview=true");
+    expect(init.method).toBe("POST");
+    expect(init.body.getAll("files")).toEqual([a, b]);
+  });
+
+  it("surfaces the backend's message when the batch is rejected", async () => {
+    respondWith(400, { message: "You can upload at most 12 files at a time. You chose 13." });
+    await expect(uploadStatements([new File(["x"], "a.csv")])).rejects.toThrow("at most 12 files");
+  });
+
+  it("knows the cap is 12", () => {
+    expect(MAX_UPLOAD_FILES).toBe(12);
   });
 });

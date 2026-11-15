@@ -8,7 +8,7 @@ import { DashboardIcon, UploadIcon, PlusIcon, ListIcon, LockIcon } from "./compo
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: DashboardIcon },
-  { id: "upload", label: "Upload Statement", icon: UploadIcon },
+  { id: "upload", label: "Upload Statements", icon: UploadIcon },
   { id: "manual", label: "Add Transaction", icon: PlusIcon },
   { id: "transactions", label: "Transactions", icon: ListIcon },
 ];

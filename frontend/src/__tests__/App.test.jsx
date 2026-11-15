@@ -32,7 +32,7 @@ describe("app navigation", () => {
   it("offers all four views by name, so screen readers and phone tab bars can use them", () => {
     render(<App />);
     const nav = screen.getByRole("navigation", { name: "Main" });
-    for (const name of ["Dashboard", "Upload Statement", "Add Transaction", "Transactions"]) {
+    for (const name of ["Dashboard", "Upload Statements", "Add Transaction", "Transactions"]) {
       expect(within(nav).getByRole("button", { name })).toBeTruthy();
     }
   });
@@ -45,9 +45,9 @@ describe("app navigation", () => {
 
   it("switches views and moves the current page marker", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Upload Statement" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Upload Statement" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Upload Statement" }).getAttribute("aria-current")).toBe("page");
+    fireEvent.click(screen.getByRole("button", { name: "Upload Statements" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Upload Statements" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Upload Statements" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("button", { name: "Dashboard" }).getAttribute("aria-current")).toBeNull();
   });
 
@@ -67,7 +67,7 @@ describe("app navigation", () => {
 describe("upload page", () => {
   it("explains what is accepted and what is removed before anything is uploaded", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Upload Statement" }));
+    fireEvent.click(screen.getByRole("button", { name: "Upload Statements" }));
     expect(screen.getByText("What to upload")).toBeTruthy();
     expect(screen.getByText("What we remove")).toBeTruthy();
   });
