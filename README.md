@@ -47,10 +47,20 @@ cd frontend && npm install && npm run dev
 
 ### Running the tests
 
+One command runs everything (needs Java 21, Maven, Node 22, and Docker for the database tests):
+
+```bash
+./run-tests.sh
+```
+
+Or run the two halves separately:
+
 ```bash
 cd backend  && mvn verify                       # 77 tests; the integration test needs Docker
-cd frontend && npm test                         # 35 tests
+cd frontend && npm run lint && npm test         # lint, then 35 tests
 ```
+
+The manual test checklist is in [docs/manual-tests.md](docs/manual-tests.md).
 
 ## Core features
 
