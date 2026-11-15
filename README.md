@@ -27,7 +27,7 @@ cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
 docker compose up --build
 ```
 
-Then open http://localhost:3000. The web page and the API share that one address.
+Then open http://localhost:3000. The web page and the API share that one address. If another program already uses port 3000, add `KYF_PORT=3001` to your `.env` file and open http://localhost:3001 instead.
 
 Stop the app with `docker compose down`. Your transactions stay in the `kyf-db-data` Docker volume and are there when you start it again. `docker compose down -v` also deletes the volume, which erases the data.
 

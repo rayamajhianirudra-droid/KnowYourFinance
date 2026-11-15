@@ -1,5 +1,5 @@
 # Runs the whole app with one command:  docker compose up --build
-# Then open http://localhost:3000
+# Then open http://localhost:3000 (or the port set by KYF_PORT in .env)
 #
 # Three services: a PostgreSQL database, the Spring Boot backend and the
 # web frontend. Copy .env.example to .env first (the .env file is ignored
@@ -40,7 +40,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "3000:80"
+      - "${KYF_PORT:-3000}:80"
     depends_on:
       backend:
         condition: service_healthy
