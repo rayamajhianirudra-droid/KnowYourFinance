@@ -117,6 +117,18 @@ jobs:
           code=$(curl -s -o /tmp/err.json -w "%{http_code}" -X POST http://localhost:3000/api/transactions \
             -H "Content-Type: application/json" -d '{"userId":1}')
           test "$code" = "400"
+      - name: Requests that carry a browser Origin header are accepted
+        run: |
+          # A real browser adds this header. curl does not, which is why a
+          # plain curl check once missed a 403 on every upload and form post.
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/transactions \
+            -H "Origin: http://localhost:3000" -H "Content-Type: application/json" \
+            -d '{"userId":1,"date":"2026-11-02","description":"Origin header check","amount":1,"type":"EXPENSE"}')
+          test "$code" = "200"
+          printf 'Date,Description,Amount\n2026-01-06,ORIGIN UPLOAD CHECK,-2.00\n' > origin.csv
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:3000/api/statements/upload-batch?userId=1" \
+            -H "Origin: http://localhost:3000" -F "files=@origin.csv")
+          test "$code" = "200"
       - name: Upload several statements at once, in different formats
         run: |
           printf 'Date,Description,Amount\n2026-01-05,JAN COFFEE SHOP,-4.50\n' > jan.csv
