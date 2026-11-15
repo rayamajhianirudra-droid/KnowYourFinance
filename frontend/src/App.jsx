@@ -4,6 +4,8 @@ import UploadStatement from "./components/UploadStatement";
 import Dashboard from "./components/Dashboard";
 import TransactionList from "./components/TransactionList";
 import ManualEntry from "./components/ManualEntry";
+import ProfileBadge from "./components/ProfileBadge";
+import { getProfile } from "./api";
 import { DashboardIcon, UploadIcon, PlusIcon, ListIcon, LockIcon } from "./components/Icons";
 
 const TABS = [
@@ -25,6 +27,21 @@ const TABS = [
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [fullName, setFullName] = useState(null);
+
+  // Load the saved name once. If it can't be loaded the app still works,
+  // it just asks for the name instead of showing it.
+  useEffect(() => {
+    let cancelled = false;
+    getProfile()
+      .then((profile) => {
+        if (!cancelled && profile && typeof profile.fullName === "string") setFullName(profile.fullName);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleImported() {
     setRefreshKey((key) => key + 1);
@@ -101,6 +118,8 @@ function App() {
             <LockIcon width={14} height={14} aria-hidden="true" />
             Your finances. Your data. Your control.
           </p>
+
+          <ProfileBadge fullName={fullName} onSaved={setFullName} />
         </div>
       </header>
 
@@ -108,6 +127,7 @@ function App() {
         <div className="content-container">
           {activeTab === "dashboard" && (
             <Dashboard
+              fullName={fullName}
               refreshKey={refreshKey}
               onUploadClick={goToUpload}
               onAddClick={goToManual}

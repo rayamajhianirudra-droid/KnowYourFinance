@@ -72,3 +72,32 @@ describe("upload page", () => {
     expect(screen.getByText("What we remove")).toBeTruthy();
   });
 });
+
+describe("profile name", () => {
+  it("shows the saved name in the top bar and greets the person on the dashboard", async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve(
+            String(url).includes("/profile")
+              ? { userId: 1, fullName: "Anirudra Rayamajhi" }
+              : String(url).includes("/dashboard/report")
+                ? { totalIncome: 0, totalExpenses: 0, netSavings: 0, categoryBreakdown: [], insights: [], previousPeriodHasData: false }
+                : []
+          ),
+      })
+    );
+    render(<App />);
+
+    expect(await screen.findByText("Anirudra Rayamajhi")).toBeTruthy();
+    expect(screen.getByText(/Welcome back, Anirudra\./)).toBeTruthy();
+  });
+
+  it("invites the person to add a name when none is saved", async () => {
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Add your name" })).toBeTruthy();
+  });
+});

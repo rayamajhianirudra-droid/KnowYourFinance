@@ -11,12 +11,18 @@ import {
   Tooltip,
 } from "recharts";
 import { getTrends } from "../api";
+import { trimLeadingEmptyMonths } from "../utils/trends";
 import { formatCompactCurrency, formatCurrency } from "../utils/format";
 
 const MONTH_ABBR = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
+
+// The chart looks back this many months from today, then drops the empty
+// months before the first one that has data, so the line starts where the
+// person's history starts instead of sitting flat at zero.
+const MONTHS_SHOWN = 12;
 
 const tooltipStyle = {
   borderRadius: 10,
@@ -29,7 +35,7 @@ const tooltipStyle = {
 const axisTick = { fill: "var(--color-text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" };
 
 /**
- * Two related but distinct views of the same trailing-6-month data:
+ * Two related but distinct views of the same trailing-12-month data:
  * income vs. expenses side by side per month (a bar chart - good for
  * comparing two discrete values per period), and net savings as a
  * single line over time (an area chart - good for reading a trend's
@@ -38,7 +44,7 @@ const axisTick = { fill: "var(--color-text-muted)", fontSize: 12, fontFamily: "v
  * my overall financial position improving."
  *
  * Deliberately independent of the report's own period selector above -
- * this always shows the trailing 6 months ending today, so switching
+ * this always shows up to 12 months ending today, starting at the first month with data, so switching
  * the report to an old month doesn't also drag this back in time.
  */
 function TrendsChart({ refreshKey }) {
@@ -51,7 +57,7 @@ function TrendsChart({ refreshKey }) {
     const now = new Date();
 
     setLoading(true);
-    getTrends(now.getFullYear(), now.getMonth() + 1, 6)
+    getTrends(now.getFullYear(), now.getMonth() + 1, MONTHS_SHOWN)
       .then((data) => {
         if (!cancelled) setTrend(data);
       })
@@ -67,8 +73,10 @@ function TrendsChart({ refreshKey }) {
     };
   }, [refreshKey]);
 
-  const chartData = trend.map((m) => ({
-    label: MONTH_ABBR[m.month - 1],
+  const shown = trimLeadingEmptyMonths(trend);
+  const crossesYears = shown.length > 0 && shown[0].year !== shown[shown.length - 1].year;
+  const chartData = shown.map((m) => ({
+    label: crossesYears ? `${MONTH_ABBR[m.month - 1]} ${String(m.year).slice(-2)}` : MONTH_ABBR[m.month - 1],
     income: Number(m.totalIncome),
     expenses: Number(m.totalExpenses),
     netSavings: Number(m.netSavings),
@@ -149,7 +157,7 @@ function TrendsChart({ refreshKey }) {
             </AreaChart>
           </ResponsiveContainer>
         )}
-        <p className="muted chart-caption">Net savings (income minus expenses) over the last 6 months.</p>
+        <p className="muted chart-caption">Net savings (income minus expenses) from your first month with data.</p>
       </div>
     </div>
   );

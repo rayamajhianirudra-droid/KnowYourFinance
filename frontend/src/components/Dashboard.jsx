@@ -1,3 +1,4 @@
+import { firstName } from "../utils/names";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { getMonthlyReport, getReportRange, listTransactions } from "../api";
 import { categoryLabel, formatCurrency, formatPercent } from "../utils/format";
@@ -38,7 +39,7 @@ function startOfMonthInput(date) {
  * list) comes from the same Transaction data manual entry and
  * statement import both write to.
  */
-function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }) {
+function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTransactions }) {
   const now = useMemo(() => new Date(), []);
   const [periodType, setPeriodType] = useState("this");
   const [customYear, setCustomYear] = useState(now.getFullYear());
@@ -142,7 +143,11 @@ function Dashboard({ refreshKey, onUploadClick, onAddClick, onViewTransactions }
     <div className="page">
       <PageHero
         title="Dashboard"
-        subtitle={`Your financial overview for ${periodLabel}.`}
+        subtitle={
+          fullName
+            ? `Welcome back, ${firstName(fullName)}. Here is your financial overview for ${periodLabel}.`
+            : `Your financial overview for ${periodLabel}.`
+        }
         art
       >
         {/* The two things people do most, one click from the top of the page. */}

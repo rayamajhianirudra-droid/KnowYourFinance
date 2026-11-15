@@ -1848,3 +1848,107 @@
   border-radius: var(--radius-sm);
   font-size: 0.88rem;
 }
+
+/* ---------- Profile (name in the top bar) ---------- */
+.profile {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: var(--color-text-on-brand);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.profile__button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.profile__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.profile__name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: 300px;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.profile__actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 960px) {
+  .profile {
+    margin-left: var(--space-2);
+  }
+}
+
+@media (max-width: 720px) {
+  .profile {
+    margin-left: auto;
+  }
+
+  .site-nav {
+    margin-left: 0;
+  }
+
+  .profile__name {
+    display: none;
+  }
+
+  .profile__button {
+    padding: 4px;
+  }
+
+  .profile__panel {
+    width: min(300px, calc(100vw - 32px));
+  }
+}
+
+/* The privacy line makes way for the name once the bar gets tight. */
+@media (max-width: 1500px) {
+  .trust-badge {
+    display: none;
+  }
+
+  .site-nav {
+    margin-left: auto;
+  }
+}

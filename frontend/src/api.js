@@ -203,3 +203,32 @@ export async function listTransactions() {
   }
   return response.json();
 }
+
+/**
+ * Loads the saved profile. The backend answers with fullName set to null
+ * until the person saves one.
+ */
+export async function getProfile() {
+  const response = await fetch(`${API_BASE}/profile?userId=${CURRENT_USER_ID}`);
+  if (!response.ok) {
+    throw new Error(`Failed to load profile (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Saves the person's full name. Rejects with the backend's message, for
+ * example "Enter your full name.", so the form can show it.
+ */
+export async function saveProfile(fullName) {
+  const response = await fetch(`${API_BASE}/profile?userId=${CURRENT_USER_ID}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fullName }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.fieldErrors?.fullName || body?.message || `Could not save your name (${response.status})`);
+  }
+  return response.json();
+}
