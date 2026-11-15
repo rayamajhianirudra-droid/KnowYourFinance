@@ -16,12 +16,12 @@ Run these with the app started by `docker compose up --build`, at http://localho
 | M-10 | Delete a transaction | Delete a row and confirm. | The row disappears and the totals update. | Pass |
 | M-11 | Past month and empty month | On the Dashboard, pick a past month, then a month with no data. | The past month shows totals and a category breakdown. The empty month shows zeros. | Pass |
 | M-12 | Custom date range | Pick a custom start and end date. | The report covers exactly that range. | Pass |
-| M-13 | Spending insights | Compare a month with a large change against one with a small change. | A month whose spending moved 10 percent or more from the month before shows a trend note. A smaller change does not. | |
-| M-14 | Data survives a restart | Run `docker compose down`, then `docker compose up`, then reload the page. | All earlier transactions are still there. | |
-| M-15 | Keyboard use | Using only the Tab and Enter keys, move through the menu and open each page. | Every page can be reached and a visible outline shows where you are. | |
+| M-13 | Spending insights | Compare a month with a large change against one with a small change. | A month whose spending moved 10 percent or more from the month before shows a trend note. A smaller change does not. | Pass |
+| M-14 | Data survives a restart | Run `docker compose down`, then `docker compose up`, then reload the page. | All earlier transactions are still there. | Pass |
+| M-15 | Keyboard use | Using only the Tab and Enter keys, move through the menu and open each page. | Every page can be reached and a visible outline shows where you are. | Pass |
 
 | M-16 | Several statements at once | Choose 3 or more statement files together (for example a CSV, a TSV and an Excel file) and wait for the preview. | Each file is listed with its own transaction count and date range, and the totals add up across files. | |
-| M-17 | Twelve file limit | Choose 13 files at once. | Only the first 12 are used and a message says so. Nothing beyond 12 is uploaded. | |
-| M-18 | One unsupported file | Include a PDF among your files. | The PDF is listed as failed with a clear message. The other files still import after you confirm. | |
+| M-17 | Twelve file limit | Choose 13 files at once. | Only the first 12 are used and a message says so. Nothing beyond 12 is uploaded. | Pass |
+| M-18 | One unsupported file | Include a PDF among your files. | The PDF is listed as failed with a clear message. The other files still import after you confirm. | Pass |
 
-Tester: ____________________  Date: ____________________
+Tester: AJ Rayamajhi  Date: 2026-11-15
