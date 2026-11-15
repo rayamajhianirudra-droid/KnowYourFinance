@@ -68,21 +68,23 @@ flowchart LR
         spa["React single page app<br/>Vite build, recharts"]
     end
 
-    subgraph server [Application server]
-        api["Spring Boot REST API<br/>controllers, services, JPA"]
+    subgraph compose [docker compose on one computer]
+        web["frontend container<br/>nginx serves the app<br/>and forwards /api"]
+        api["backend container<br/>Spring Boot REST API<br/>controllers, services, JPA"]
+        db[("db container<br/>PostgreSQL 16<br/>volume kyf-db-data")]
     end
 
-    subgraph cloud [Supabase cloud]
-        db[("PostgreSQL<br/>transactions table")]
-    end
+    supa[("Supabase PostgreSQL<br/>optional, set in .env")]
 
     csv[/"Bank statement CSV<br/>exported by the user"/]
 
-    user -->|views and edits| spa
+    user -->|opens localhost:3000| spa
     user -.->|downloads from own bank| csv
     csv -.->|user uploads file| spa
-    spa -->|JSON over HTTP, /api| api
-    api -->|JDBC through Session Pooler| db
+    spa -->|HTTP| web
+    web -->|"/api proxied"| api
+    api -->|JDBC| db
+    api -.->|JDBC, only if configured| supa
 ```
 
 ---
@@ -245,22 +247,24 @@ sequenceDiagram
         SC->>IS: importCsv(stream, userId, persist)
         IS->>P: parse(stream)
         P-->>IS: parsed rows and skipped row count
+        IS->>Repo: findByUserIdAndDateBetween(first date, last date)
+        Repo->>DB: one select for the whole file
+        DB-->>Repo: existing transactions in that span
+        Repo-->>IS: keys of existing transactions
         loop each parsed row
             IS->>R: redact(description)
             Note over IS,R: Redaction is always the first step on a row (FR-204)
             R-->>IS: safe description and redacted flag
             IS->>AC: categorizeWithConfidence(safe description)
             AC-->>IS: category and confidence
-            IS->>Repo: existsBy user, date, description, amount, type
-            Repo->>DB: select exists
-            DB-->>Repo: true or false
-            alt identical record exists
+            alt key already known (database or earlier in this file)
                 IS->>IS: increment duplicatesSkipped
             else new transaction
-                IS->>Repo: save(transaction with lowConfidence flag)
-                Repo->>DB: insert
+                IS->>IS: add to the list to save
             end
         end
+        IS->>Repo: saveAll(new transactions)
+        Repo->>DB: batched inserts, 50 rows per batch
         IS-->>SC: summary and saved transactions
         SC-->>UI: 200 parsed, saved, redacted, skipped, duplicates
         UI-->>U: show import summary

@@ -20,22 +20,24 @@ sequenceDiagram
         SC->>IS: importCsv(stream, userId, persist)
         IS->>P: parse(stream)
         P-->>IS: parsed rows and skipped row count
+        IS->>Repo: findByUserIdAndDateBetween(first date, last date)
+        Repo->>DB: one select for the whole file
+        DB-->>Repo: existing transactions in that span
+        Repo-->>IS: keys of existing transactions
         loop each parsed row
             IS->>R: redact(description)
             Note over IS,R: Redaction is always the first step on a row (FR-204)
             R-->>IS: safe description and redacted flag
             IS->>AC: categorizeWithConfidence(safe description)
             AC-->>IS: category and confidence
-            IS->>Repo: existsBy user, date, description, amount, type
-            Repo->>DB: select exists
-            DB-->>Repo: true or false
-            alt identical record exists
+            alt key already known (database or earlier in this file)
                 IS->>IS: increment duplicatesSkipped
             else new transaction
-                IS->>Repo: save(transaction with lowConfidence flag)
-                Repo->>DB: insert
+                IS->>IS: add to the list to save
             end
         end
+        IS->>Repo: saveAll(new transactions)
+        Repo->>DB: batched inserts, 50 rows per batch
         IS-->>SC: summary and saved transactions
         SC-->>UI: 200 parsed, saved, redacted, skipped, duplicates
         UI-->>U: show import summary
