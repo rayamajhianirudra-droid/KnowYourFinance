@@ -100,17 +100,15 @@ This build environment can't reach Maven Central, so none of this has been compi
 
 ## 10. GitHub access troubleshooting note
 
-While setting this up, pushing to the `knowYourFinance` repo kept failing with a "credential doesn't have access" error, even after the GitHub account itself was connected. The cause: **repo visibility (public/private) and GitHub App repo-permission are two separate settings**, and it's easy to assume fixing one fixes the other.
+While setting this up, pushing to the `knowYourFinance` repo kept failing with a "credential doesn't have access" error, even after the GitHub account itself was connected. The cause: **repo visibility (public/private) and the permission given to an installed GitHub App are two separate settings**, and it is easy to assume fixing one fixes the other.
 
 - **Public vs. private** controls who can *see* the repo on github.com.
-- **GitHub App installation → repository access** (at `github.com/settings/installations` → the Claude app → **Configure**) controls which specific repos that app is allowed to read/write, independent of visibility.
+- **App installation, repository access** (at `github.com/settings/installations`, then **Configure** next to the app) controls which specific repos that app may read and write, independent of visibility.
 
-A private repo with the app explicitly granted access works fine for pushing. A public repo *without* that grant will usually still allow read-only cloning (often with no setup at all), but **will not** allow pushing commits — the push path always needs the app's permission step, regardless of public/private.
+A private repo with the app explicitly granted access works fine for pushing. A public repo without that grant will usually still allow read-only cloning, but will not allow pushing commits.
 
-**Fix attempt 1 (didn't apply here):** `github.com/settings/installations` had no "Claude" app installed at all for this account — only Railway and Vercel showed up.
+**What did not fix it:** the installations page showed no matching app at all, and making the repo public only made it visible, not writable.
 
-**Fix attempt 2 (partial, misleading):** every repo visible to the session's GitHub connection (`lifeos-fullstack`, `aj-portfolio`, etc.) happened to already be public, and `knowYourFinance` wasn't visible at all while private. Making it public did make it *visible/attachable* — but that turned out to be a coincidence, not the actual fix. Attaching it after going public still came back with push explicitly refused.
+**The real root cause:** the GitHub App had never been installed for this account. The error message, once the repo could be attached, gave the install link. That is different from the installations page, which only lists apps that are already installed.
 
-**The real root cause:** the Claude GitHub App genuinely was not installed for this GitHub account/org at all. The error, once the repo could be attached, said so directly and gave the exact install link: `https://github.com/apps/claude/installations/select_target`. That's different from `github.com/settings/installations` (which only lists apps already installed) — this link is GitHub's page to install a *new* app and pick which account/repos it can access.
-
-**Actual fix:** open `https://github.com/apps/claude/installations/select_target`, choose the personal account, and grant it access to `knowYourFinance` (or all repos). Visibility (public/private) was not the deciding factor in the end.
+**Actual fix:** open the install link from the error message, choose the personal account, and grant access to `knowYourFinance`. Visibility was not the deciding factor in the end.
