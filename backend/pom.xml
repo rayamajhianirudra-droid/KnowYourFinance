@@ -45,6 +45,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Reads Excel (.xlsx) statement uploads. -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.4.1</version>
+        </dependency>
+
         <!-- Validation: lets us mark fields like "email must be valid" or "amount cannot be null"
              directly on our data classes -->
         <dependency>

@@ -67,9 +67,20 @@ public class StatementImportService {
      * duplicate check still runs during a preview (read-only, so it's
      * safe), so the preview's duplicate count is accurate too.
      */
-    @Transactional
     public StatementImportResponse importCsv(InputStream csvInputStream, Long userId, boolean persist) throws IOException {
-        CsvStatementParser.ParseResult parseResult = csvStatementParser.parse(csvInputStream);
+        return importFile(csvInputStream, "statement.csv", userId, persist);
+    }
+
+    /**
+     * The same pipeline for any supported file type. The file name decides
+     * how the file is read (CSV, TSV, TXT or XLSX); everything after
+     * reading is identical. Each call is its own database transaction, so
+     * when several files are imported one after another, a failure in one
+     * file never undoes the files that already succeeded.
+     */
+    @Transactional
+    public StatementImportResponse importFile(InputStream input, String fileName, Long userId, boolean persist) throws IOException {
+        CsvStatementParser.ParseResult parseResult = csvStatementParser.parse(input, fileName);
         List<CsvStatementParser.ParsedRow> parsedRows = parseResult.getRows();
 
         // Work out which rows are already stored with ONE query for the

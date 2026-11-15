@@ -258,4 +258,29 @@ class StatementImportServiceTest {
         assertEquals(2, response.getRowsRedacted());
         assertEquals(0, response.getDuplicatesSkipped());
     }
+
+    @Test
+    void aTabSeparatedFileGoesThroughTheSameRedactionAndCategorization() throws IOException {
+        String tsv = "Date\tDescription\tAmount\n"
+                + "09/07/2026\tACH TRANSFER REF 48217536901\t($200.00)\n"
+                + "09/09/2026\tSTARBUCKS #4521\t-5.75\n";
+
+        StatementImportResponse response = statementImportService.importFile(csv(tsv), "sept.tsv", 1L, true);
+
+        assertEquals(2, response.getTransactionsSaved());
+        assertEquals(1, response.getRowsRedacted());
+        Transaction first = response.getTransactions().get(0);
+        assertEquals("ACH TRANSFER REF [REDACTED]", first.getDescription());
+        assertFalse(first.getDescription().contains("48217536901"));
+        assertEquals(new BigDecimal("200.00"), first.getAmount());
+        assertEquals(TransactionType.EXPENSE, first.getType());
+    }
+
+    @Test
+    void anUnsupportedFileTypeSavesNothing() {
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedFileTypeException.class,
+                () -> statementImportService.importFile(csv("anything"), "statement.pdf", 1L, true));
+
+        verify(transactionRepository, never()).saveAll(any());
+    }
 }

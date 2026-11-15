@@ -83,6 +83,12 @@ public class GlobalExceptionHandler {
                 "Missing or invalid request parameter: " + name, null));
     }
 
+    /** The caller's request was wrong in a way we can explain, such as too many files. */
+    @ExceptionHandler({BadUploadException.class, com.kyf.knowyourfinance.service.UnsupportedFileTypeException.class})
+    public ResponseEntity<Map<String, Object>> handleBadUpload(RuntimeException ex) {
+        return ResponseEntity.badRequest().body(errorBody(ex.getMessage(), null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
         return ResponseEntity.internalServerError().body(errorBody(

@@ -2,12 +2,9 @@ package com.kyf.knowyourfinance.service;
 
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -32,7 +29,12 @@ import java.util.List;
  * messier later (quoted commas, multi-line fields), that's the moment to
  * reach for a real library instead of growing this by hand.
  *
- * Expected format (header row required):
+ * Text formats are still read by hand. Excel (.xlsx) is a zipped XML format,
+ * which is not sensible to parse by hand, so StatementTableReader uses Apache
+ * POI for that one format only. Besides CSV this parser therefore reads TSV,
+ * TXT and XLSX, and accepts several common date and amount styles.
+ *
+ * Expected layout (header row required):
  *   Date,Description,Amount
  *   2026-09-01,STARBUCKS #4521,-5.75
  *   2026-09-01,PAYROLL DEPOSIT,2450.00
@@ -43,79 +45,92 @@ import java.util.List;
 @Component
 public class CsvStatementParser {
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE; // yyyy-MM-dd
+    // The date layouts banks commonly use. They are tried in this order.
+    private static final List<DateTimeFormatter> DATE_FORMATS = List.of(
+            DateTimeFormatter.ISO_LOCAL_DATE,          // 2026-09-01
+            DateTimeFormatter.ofPattern("M/d/yyyy"),   // 09/01/2026 or 9/1/2026
+            DateTimeFormatter.ofPattern("M-d-yyyy"),   // 09-01-2026
+            DateTimeFormatter.ofPattern("M/d/yy"));    // 9/1/26
 
+    /** Reads a comma separated file. Kept for callers that have only a stream. */
     public ParseResult parse(InputStream csvInputStream) throws IOException {
-        List<ParsedRow> rows = new ArrayList<>();
-        int skippedRowCount = 0;
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(csvInputStream, StandardCharsets.UTF_8))) {
-
-            String line = reader.readLine(); // header row - we don't validate its exact
-            // wording, we just assume column order: Date, Description, Amount
-
-            int lineNumber = 1;
-            while ((line = reader.readLine()) != null) {
-                lineNumber++;
-                if (line.isBlank()) {
-                    continue; // skip blank lines some exports leave at the end -
-                    // not a parse failure, so this doesn't count toward
-                    // skippedRowCount
-                }
-
-                String[] columns = splitCsvLine(line);
-                if (columns.length < 3) {
-                    // Malformed row - we skip it rather than fail the whole
-                    // upload. A statement with one bad line shouldn't block
-                    // every other valid transaction from being imported, but
-                    // the user still deserves to know it happened (FR-104).
-                    skippedRowCount++;
-                    continue;
-                }
-
-                try {
-                    LocalDate date = LocalDate.parse(columns[0].trim(), DATE_FORMAT);
-                    String description = columns[1].trim();
-                    BigDecimal amount = new BigDecimal(columns[2].trim());
-                    rows.add(new ParsedRow(date, description, amount));
-                } catch (DateTimeParseException | NumberFormatException e) {
-                    // Same reasoning as above: one bad row doesn't sink the
-                    // whole import, but it does count toward the skipped
-                    // total reported back to the user.
-                    skippedRowCount++;
-                }
-            }
-        }
-
-        return new ParseResult(rows, skippedRowCount);
+        return parseTable(StatementTableReader.readDelimited(csvInputStream, ','));
     }
 
     /**
-     * A minimal CSV line splitter that handles the one tricky case bank
-     * exports actually use: a comma inside a quoted field (e.g. a
-     * description like "SMITH, JOHN - TRANSFER"). It does NOT handle
-     * escaped quotes inside quotes or multi-line quoted fields - if a
-     * real statement needs that, that's the signal to switch to a real
-     * CSV library instead of extending this by hand.
+     * Reads a statement in any supported format (CSV, TSV, TXT, XLSX),
+     * chosen by the file name's extension.
      */
-    private String[] splitCsvLine(String line) {
-        List<String> fields = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean inQuotes = false;
+    public ParseResult parse(InputStream input, String fileName) throws IOException {
+        return parseTable(StatementTableReader.read(input, fileName));
+    }
 
-        for (char c : line.toCharArray()) {
-            if (c == '"') {
-                inQuotes = !inQuotes;
-            } else if (c == ',' && !inQuotes) {
-                fields.add(current.toString());
-                current.setLength(0);
-            } else {
-                current.append(c);
+    /**
+     * Turns table rows (header first, then Date, Description, Amount per
+     * row) into parsed rows. A row that cannot be read is skipped and
+     * counted, so one bad line never blocks the rest of the file (FR-103).
+     */
+    ParseResult parseTable(List<String[]> table) {
+        List<ParsedRow> rows = new ArrayList<>();
+        int skippedRowCount = 0;
+
+        // The first row is the header. We do not check its wording, we
+        // only assume the column order: Date, Description, Amount.
+        for (int i = 1; i < table.size(); i++) {
+            String[] columns = table.get(i);
+            if (columns.length == 0 || isBlankRow(columns)) {
+                continue; // blank lines are normal, not a parse failure
+            }
+            if (columns.length < 3) {
+                skippedRowCount++;
+                continue;
+            }
+            try {
+                LocalDate date = parseDate(columns[0].trim());
+                String description = columns[1].trim();
+                BigDecimal amount = parseAmount(columns[2]);
+                rows.add(new ParsedRow(date, description, amount));
+            } catch (DateTimeParseException | NumberFormatException e) {
+                skippedRowCount++;
             }
         }
-        fields.add(current.toString());
-        return fields.toArray(new String[0]);
+        return new ParseResult(rows, skippedRowCount);
+    }
+
+    private static boolean isBlankRow(String[] columns) {
+        for (String c : columns) {
+            if (c != null && !c.isBlank()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static LocalDate parseDate(String text) {
+        DateTimeParseException last = null;
+        for (DateTimeFormatter format : DATE_FORMATS) {
+            try {
+                return LocalDate.parse(text, format);
+            } catch (DateTimeParseException e) {
+                last = e;
+            }
+        }
+        throw last;
+    }
+
+    /**
+     * Understands the amount styles banks use: -5.75, $5.75, 1,234.50 and
+     * (5.75), where brackets mean money out.
+     */
+    private static BigDecimal parseAmount(String text) {
+        String t = text.trim();
+        boolean bracketed = t.startsWith("(") && t.endsWith(")");
+        if (bracketed) {
+            t = t.substring(1, t.length() - 1);
+        }
+        t = t.replace("$", "").replace(",", "").replace(" ", "");
+        BigDecimal value = new BigDecimal(t);
+        return bracketed ? value.negate() : value;
     }
 
     /**

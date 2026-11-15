@@ -1,6 +1,7 @@
 package com.kyf.knowyourfinance.controller;
 
 import com.kyf.knowyourfinance.dto.StatementImportResponse;
+import com.kyf.knowyourfinance.service.UnsupportedFileTypeException;
 import com.kyf.knowyourfinance.service.StatementImportService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,24 +52,24 @@ class StatementControllerTest {
                         .file(csvFile(new byte[0])).param("userId", "1"))
                 .andExpect(status().isBadRequest());
 
-        verify(statementImportService, never()).importCsv(any(InputStream.class), any(), eq(true));
+        verify(statementImportService, never()).importFile(any(InputStream.class), any(), any(), eq(true));
     }
 
     @Test
     void aNormalUploadSavesTheTransactions() throws Exception {
-        when(statementImportService.importCsv(any(InputStream.class), eq(1L), eq(true)))
+        when(statementImportService.importFile(any(InputStream.class), any(), eq(1L), eq(true)))
                 .thenReturn(EMPTY_RESULT);
 
         mockMvc.perform(multipart("/api/statements/upload")
                         .file(csvFile("Date,Description,Amount\n".getBytes())).param("userId", "1"))
                 .andExpect(status().isOk());
 
-        verify(statementImportService).importCsv(any(InputStream.class), eq(1L), eq(true));
+        verify(statementImportService).importFile(any(InputStream.class), any(), eq(1L), eq(true));
     }
 
     @Test
     void previewModeAsksTheServiceNotToSave() throws Exception {
-        when(statementImportService.importCsv(any(InputStream.class), eq(1L), eq(false)))
+        when(statementImportService.importFile(any(InputStream.class), any(), eq(1L), eq(false)))
                 .thenReturn(EMPTY_RESULT);
 
         mockMvc.perform(multipart("/api/statements/upload")
@@ -76,7 +77,7 @@ class StatementControllerTest {
                         .param("userId", "1").param("preview", "true"))
                 .andExpect(status().isOk());
 
-        verify(statementImportService).importCsv(any(InputStream.class), eq(1L), eq(false));
+        verify(statementImportService).importFile(any(InputStream.class), any(), eq(1L), eq(false));
     }
 
     @Test
@@ -97,5 +98,127 @@ class StatementControllerTest {
 
         assertEquals(400, response.getStatusCode().value());
         assertEquals("Uploaded file is too large (10MB limit)", response.getBody().get("message"));
+    }
+
+    // ----- batch upload (up to 12 files in one request) -----
+
+    private MockMultipartFile batchFile(String name, byte[] content) {
+        return new MockMultipartFile("files", name, "text/csv", content);
+    }
+
+    @Test
+    void aBatchOfTwoFilesReturnsOneResultPerFile() throws Exception {
+        when(statementImportService.importFile(any(InputStream.class), eq("jan.csv"), eq(1L), eq(true)))
+                .thenReturn(EMPTY_RESULT);
+        when(statementImportService.importFile(any(InputStream.class), eq("feb.xlsx"), eq(1L), eq(true)))
+                .thenReturn(EMPTY_RESULT);
+
+        mockMvc.perform(multipart("/api/statements/upload-batch")
+                        .file(batchFile("jan.csv", "Date,Description,Amount\n".getBytes()))
+                        .file(batchFile("feb.xlsx", "x".getBytes()))
+                        .param("userId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files.length()").value(2))
+                .andExpect(jsonPath("$.files[0].fileName").value("jan.csv"))
+                .andExpect(jsonPath("$.files[0].success").value(true))
+                .andExpect(jsonPath("$.files[1].fileName").value("feb.xlsx"))
+                .andExpect(jsonPath("$.filesSucceeded").value(2))
+                .andExpect(jsonPath("$.filesFailed").value(0));
+    }
+
+    @Test
+    void exactlyTwelveFilesAreAccepted() throws Exception {
+        when(statementImportService.importFile(any(InputStream.class), any(), eq(1L), eq(true)))
+                .thenReturn(EMPTY_RESULT);
+
+        var request = multipart("/api/statements/upload-batch").param("userId", "1");
+        for (int i = 1; i <= 12; i++) {
+            request.file(batchFile("month" + i + ".csv", "Date,Description,Amount\n".getBytes()));
+        }
+
+        mockMvc.perform(request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files.length()").value(12));
+    }
+
+    @Test
+    void thirteenFilesAreRejectedWithAClearMessageAndNothingIsImported() throws Exception {
+        var request = multipart("/api/statements/upload-batch").param("userId", "1");
+        for (int i = 1; i <= 13; i++) {
+            request.file(batchFile("month" + i + ".csv", "Date,Description,Amount\n".getBytes()));
+        }
+
+        mockMvc.perform(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "You can upload at most 12 files at a time. You chose 13."));
+
+        verify(statementImportService, never()).importFile(any(InputStream.class), any(), any(), eq(true));
+    }
+
+    @Test
+    void aBatchWithNoFilesIsRejected() throws Exception {
+        mockMvc.perform(multipart("/api/statements/upload-batch").param("userId", "1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Choose at least one file."));
+    }
+
+    @Test
+    void oneUnsupportedFileFailsAloneAndTheOthersStillImport() throws Exception {
+        when(statementImportService.importFile(any(InputStream.class), eq("good.csv"), eq(1L), eq(true)))
+                .thenReturn(EMPTY_RESULT);
+        when(statementImportService.importFile(any(InputStream.class), eq("notes.pdf"), eq(1L), eq(true)))
+                .thenThrow(new UnsupportedFileTypeException("notes.pdf"));
+
+        mockMvc.perform(multipart("/api/statements/upload-batch")
+                        .file(batchFile("good.csv", "Date,Description,Amount\n".getBytes()))
+                        .file(batchFile("notes.pdf", "pdf".getBytes()))
+                        .param("userId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files[0].success").value(true))
+                .andExpect(jsonPath("$.files[1].success").value(false))
+                .andExpect(jsonPath("$.files[1].message").value(
+                        "\"notes.pdf\" is not a supported file type. Use CSV, TSV, TXT or XLSX."))
+                .andExpect(jsonPath("$.filesSucceeded").value(1))
+                .andExpect(jsonPath("$.filesFailed").value(1));
+    }
+
+    @Test
+    void anEmptyFileInABatchIsReportedWithoutCallingTheService() throws Exception {
+        mockMvc.perform(multipart("/api/statements/upload-batch")
+                        .file(batchFile("empty.csv", new byte[0]))
+                        .param("userId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files[0].success").value(false))
+                .andExpect(jsonPath("$.files[0].message").value("The file is empty."));
+
+        verify(statementImportService, never()).importFile(any(InputStream.class), any(), any(), eq(true));
+    }
+
+    @Test
+    void aFileThatCannotBeReadIsReportedAsFailedNotAsAServerError() throws Exception {
+        when(statementImportService.importFile(any(InputStream.class), eq("broken.xlsx"), eq(1L), eq(true)))
+                .thenThrow(new java.io.IOException("corrupt"));
+
+        mockMvc.perform(multipart("/api/statements/upload-batch")
+                        .file(batchFile("broken.xlsx", "not really a workbook".getBytes()))
+                        .param("userId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files[0].success").value(false))
+                .andExpect(jsonPath("$.files[0].message").value(
+                        "This file could not be read. Check that it is a valid statement export."));
+    }
+
+    @Test
+    void aPreviewBatchAsksTheServiceNotToSave() throws Exception {
+        when(statementImportService.importFile(any(InputStream.class), eq("jan.csv"), eq(1L), eq(false)))
+                .thenReturn(EMPTY_RESULT);
+
+        mockMvc.perform(multipart("/api/statements/upload-batch")
+                        .file(batchFile("jan.csv", "Date,Description,Amount\n".getBytes()))
+                        .param("userId", "1").param("preview", "true"))
+                .andExpect(status().isOk());
+
+        verify(statementImportService).importFile(any(InputStream.class), eq("jan.csv"), eq(1L), eq(false));
     }
 }
