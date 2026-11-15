@@ -3,6 +3,7 @@ import { todayInput } from "../utils/dates";
 import { useState } from "react";
 import { addTransaction } from "../api";
 import { categoryLabel } from "../utils/format";
+import { initials } from "../utils/names";
 import { IncomeIcon, ExpenseIcon, CheckCircleIcon, AlertIcon } from "./Icons";
 
 const CATEGORIES = [
@@ -22,7 +23,7 @@ const today = todayInput;
  * month" number. This hits the exact same Transaction table statement
  * uploads do - no separate "cash mode," no different math downstream.
  */
-function ManualEntry({ onAdded }) {
+function ManualEntry({ fullName, onAdded }) {
   const [date, setDate] = useState(today());
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -58,6 +59,12 @@ function ManualEntry({ onAdded }) {
       />
 
       <form className="panel entry-form" onSubmit={handleSubmit} noValidate>
+        {fullName && (
+          <p className="entry-owner">
+            <span className="entry-owner__avatar" aria-hidden="true">{initials(fullName)}</span>
+            Adding to <strong>{fullName}</strong>'s account
+          </p>
+        )}
         <div className="type-toggle" role="radiogroup" aria-label="Transaction type">
           <button
             type="button"
@@ -146,7 +153,7 @@ function ManualEntry({ onAdded }) {
         )}
         {status === "done" && (
           <p className="success-note">
-            <CheckCircleIcon width={16} height={16} aria-hidden="true" /> Transaction added.
+            <CheckCircleIcon width={16} height={16} aria-hidden="true" /> Transaction added{fullName ? ` to ${fullName}'s account` : ""}.
           </p>
         )}
       </form>

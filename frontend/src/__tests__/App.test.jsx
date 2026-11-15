@@ -93,6 +93,9 @@ describe("profile name", () => {
 
     expect(await screen.findByText("Anirudra Rayamajhi")).toBeTruthy();
     expect(screen.getByText(/Welcome back, Anirudra\./)).toBeTruthy();
+
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Main" })).getByRole("button", { name: /Add Transaction/ }));
+    expect(await screen.findByText(/'s account/)).toBeTruthy();
   });
 
   it("invites the person to add a name when none is saved", async () => {

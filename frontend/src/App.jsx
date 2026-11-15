@@ -135,7 +135,7 @@ function App() {
             />
           )}
           {activeTab === "upload" && <UploadStatement onImported={handleImported} />}
-          {activeTab === "manual" && <ManualEntry onAdded={handleManualAdd} />}
+          {activeTab === "manual" && <ManualEntry fullName={fullName} onAdded={handleManualAdd} />}
           {activeTab === "transactions" && (
             <TransactionList
               refreshKey={refreshKey}
