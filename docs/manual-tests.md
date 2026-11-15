@@ -20,4 +20,8 @@ Run these with the app started by `docker compose up --build`, at http://localho
 | M-14 | Data survives a restart | Run `docker compose down`, then `docker compose up`, then reload the page. | All earlier transactions are still there. | |
 | M-15 | Keyboard use | Using only the Tab and Enter keys, move through the menu and open each page. | Every page can be reached and a visible outline shows where you are. | |
 
+| M-16 | Several statements at once | Choose 3 or more statement files together (for example a CSV, a TSV and an Excel file) and wait for the preview. | Each file is listed with its own transaction count and date range, and the totals add up across files. | |
+| M-17 | Twelve file limit | Choose 13 files at once. | Only the first 12 are used and a message says so. Nothing beyond 12 is uploaded. | |
+| M-18 | One unsupported file | Include a PDF among your files. | The PDF is listed as failed with a clear message. The other files still import after you confirm. | |
+
 Tester: ____________________  Date: ____________________

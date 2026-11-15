@@ -117,11 +117,28 @@ jobs:
           code=$(curl -s -o /tmp/err.json -w "%{http_code}" -X POST http://localhost:3000/api/transactions \
             -H "Content-Type: application/json" -d '{"userId":1}')
           test "$code" = "400"
+      - name: Upload several statements at once, in different formats
+        run: |
+          printf 'Date,Description,Amount\n2026-01-05,JAN COFFEE SHOP,-4.50\n' > jan.csv
+          printf 'Date\tDescription\tAmount\n02/06/2026\tFEB BOOKSTORE\t($12.00)\n' > feb.tsv
+          curl -fsS -X POST "http://localhost:3000/api/statements/upload-batch?userId=1" \
+            -F "files=@jan.csv" -F "files=@feb.tsv" | tee batch.json
+          grep -q '"filesSucceeded":2' batch.json
+          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "FEB BOOKSTORE"
+      - name: A thirteenth file is refused
+        run: |
+          args=""
+          for i in $(seq 1 13); do printf 'Date,Description,Amount\n' > "m$i.csv"; args="$args -F files=@m$i.csv"; done
+          code=$(curl -s -o /tmp/too-many.json -w "%{http_code}" -X POST \
+            "http://localhost:3000/api/statements/upload-batch?userId=1" $args)
+          test "$code" = "400"
+          grep -q "at most 12 files" /tmp/too-many.json
       - name: Data survives stop and start
         run: |
           docker compose down
           docker compose up -d --wait --wait-timeout 300
           curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "Smoke test coffee"
+          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "FEB BOOKSTORE"
       - name: Show logs if something failed
         if: failure()
         run: docker compose logs --tail=100

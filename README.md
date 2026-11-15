@@ -56,15 +56,15 @@ One command runs everything (needs Java 21, Maven, Node 22, and Docker for the d
 Or run the two halves separately:
 
 ```bash
-cd backend  && mvn verify                       # 77 tests; the integration test needs Docker
-cd frontend && npm run lint && npm test         # lint, then 35 tests
+cd backend  && mvn verify                       # 96 tests; the integration test needs Docker
+cd frontend && npm run lint && npm test         # lint, then 48 tests
 ```
 
 The manual test checklist is in [docs/manual-tests.md](docs/manual-tests.md).
 
 ## Core features
 
-- **Statement upload** (`POST /api/statements/upload`) — CSV in, redacted + categorized transactions out
+- **Statement upload** (`POST /api/statements/upload-batch`) — up to 12 files at once (CSV, TSV, TXT or Excel .xlsx), redacted + categorized transactions out, one result per file. The single file endpoint `POST /api/statements/upload` still works.
 - **Manual entry** (`POST /api/transactions`) — for cash spending, which never appears on a bank statement
 - **Monthly report** (`GET /api/dashboard/report`) — income, expenses, net savings, and a category breakdown for any month/year you pick
 - **Transaction list** — every transaction on file, statement-imported or manual, in one place

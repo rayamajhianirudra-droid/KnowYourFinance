@@ -117,6 +117,20 @@ The change: ids now come from a database sequence (allocation size 50) instead o
 
 Caveat: the CI database is on the same machine, so the saving looks small in milliseconds (320 ms to 283 ms). Against a remote database each statement costs a network round trip, so cutting 1,001 statements to 22 matters far more there. The round trip time to Supabase was not measured, so no remote time is claimed.
 
+## 6b. Addendum: several statements at once (November 15, 2026)
+
+The upload accepts up to 12 files per request, in CSV, TSV, TXT or Excel (.xlsx) format. Tests added: 19 backend (96 in total) and 13 frontend (48 in total).
+
+| Area | What is checked |
+|---|---|
+| File reading | Tab separated and semicolon separated files, automatic separator detection for .txt, case insensitive extensions, a byte order mark, a real Excel workbook with date cells, number cells, a blank row and a bad row, a file that only pretends to be a workbook |
+| Dates and amounts | 09/01/2026, 9/1/26 and 09-03-2026 style dates; $1,234.50, (5.75) and -$20.00 style amounts |
+| Batch endpoint | Two files give two results, exactly 12 are accepted, 13 are refused with a message and nothing is imported, an empty file or unsupported type fails alone while the others import, an unreadable workbook is reported as a failed file and not a server error, preview mode does not save |
+| Page | Many files can be chosen, only the first 12 are sent and a notice says so, a failed file is shown with its reason and left out of the save, saving is blocked when no file could be read, a result is shown for each file |
+| Whole stack in CI | Through the real containers: a CSV and a TSV uploaded together are both saved, a thirteenth file is refused, and the data survives a restart |
+
+Not covered: PDF statements are not supported. An Excel file with the columns in a different order, or with several sheets, is read as Date, Description, Amount from the first sheet only. A preview cannot see repeated transactions between two files of the same batch, because nothing is saved yet; they are caught when the files are saved.
+
 ## 7. What has not been tested
 
 1. **Nothing was run against the live Supabase database from the backend container.** Tests use mocks or a throwaway PostgreSQL. The new trends query was run once by hand on Supabase and parsed correctly, but that database had no 2026 data for user 1 at that moment, so it returned no rows.
