@@ -322,3 +322,38 @@ export async function resetData({ includeName = false } = {}) {
   }
   return response.json();
 }
+
+/** Lists the "always put this merchant in that category" rules. */
+export async function listRules() {
+  const response = await fetch(`${API_BASE}/rules?userId=${CURRENT_USER_ID}`);
+  if (!response.ok) {
+    throw new Error(`Failed to load rules (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Remembers a merchant. With applyToExisting the rule also fixes the
+ * transactions already stored. Resolves to { rule, updated }.
+ */
+export async function saveRule({ pattern, category, applyToExisting }) {
+  const response = await fetch(`${API_BASE}/rules?userId=${CURRENT_USER_ID}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pattern, category, applyToExisting: Boolean(applyToExisting) }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Failed to save rule (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteRule(id) {
+  const response = await fetch(`${API_BASE}/rules/${id}?userId=${CURRENT_USER_ID}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove rule (${response.status})`);
+  }
+}

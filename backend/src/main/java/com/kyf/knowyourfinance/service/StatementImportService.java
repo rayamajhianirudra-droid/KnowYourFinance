@@ -1,8 +1,10 @@
 package com.kyf.knowyourfinance.service;
 
 import com.kyf.knowyourfinance.dto.StatementImportResponse;
+import com.kyf.knowyourfinance.model.CategoryRule;
 import com.kyf.knowyourfinance.model.Transaction;
 import com.kyf.knowyourfinance.model.TransactionType;
+import com.kyf.knowyourfinance.repository.CategoryRuleRepository;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,13 +46,16 @@ public class StatementImportService {
     private final CsvStatementParser csvStatementParser;
     private final AutoCategorizer autoCategorizer;
     private final TransactionRepository transactionRepository;
+    private final CategoryRuleRepository categoryRuleRepository;
 
     public StatementImportService(CsvStatementParser csvStatementParser,
                                    AutoCategorizer autoCategorizer,
-                                   TransactionRepository transactionRepository) {
+                                   TransactionRepository transactionRepository,
+                                   CategoryRuleRepository categoryRuleRepository) {
         this.csvStatementParser = csvStatementParser;
         this.autoCategorizer = autoCategorizer;
         this.transactionRepository = transactionRepository;
+        this.categoryRuleRepository = categoryRuleRepository;
     }
 
     public StatementImportResponse importCsv(InputStream csvInputStream, Long userId) throws IOException {
@@ -89,6 +94,10 @@ public class StatementImportService {
         // lookups here; now it costs one.
         Set<String> knownKeys = loadExistingKeys(userId, parsedRows);
 
+        // The person's own "always put this merchant in that category"
+        // rules, loaded once. They are checked before the built-in guesses.
+        List<CategoryRule> userRules = categoryRuleRepository.findByUserIdOrderByPatternAsc(userId);
+
         List<Transaction> toSave = new ArrayList<>();
         int redactedCount = 0;
         int duplicateCount = 0;
@@ -100,8 +109,10 @@ public class StatementImportService {
             }
             String safeDescription = redactionResult.getText();
 
+            var ruleCategory = CategoryRuleService.match(userRules, safeDescription);
             var categorization = autoCategorizer.categorizeWithConfidence(safeDescription);
-            var category = categorization.getCategory();
+            var category = ruleCategory.orElse(categorization.getCategory());
+            boolean lowConfidence = ruleCategory.isEmpty() && categorization.isLowConfidence();
 
             BigDecimal amount = row.getAmount();
             TransactionType type = amount.signum() < 0 ? TransactionType.EXPENSE : TransactionType.INCOME;
@@ -117,7 +128,7 @@ public class StatementImportService {
 
             Transaction transaction = new Transaction(
                     row.getDate(), safeDescription, positiveAmount, type, category, userId);
-            transaction.setLowConfidence(categorization.isLowConfidence());
+            transaction.setLowConfidence(lowConfidence);
             toSave.add(transaction);
         }
 

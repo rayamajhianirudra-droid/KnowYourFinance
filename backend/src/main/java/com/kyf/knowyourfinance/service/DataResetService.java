@@ -2,6 +2,7 @@ package com.kyf.knowyourfinance.service;
 
 import com.kyf.knowyourfinance.dto.DataSummary;
 import com.kyf.knowyourfinance.dto.ResetResult;
+import com.kyf.knowyourfinance.repository.CategoryRuleRepository;
 import com.kyf.knowyourfinance.repository.MonthlyBudgetRepository;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
 import com.kyf.knowyourfinance.repository.UserProfileRepository;
@@ -20,10 +21,13 @@ public class DataResetService {
     private final TransactionRepository transactions;
     private final MonthlyBudgetRepository budgets;
     private final UserProfileRepository profiles;
+    private final CategoryRuleRepository rules;
 
     public DataResetService(TransactionRepository transactions,
                             MonthlyBudgetRepository budgets,
-                            UserProfileRepository profiles) {
+                            UserProfileRepository profiles,
+                            CategoryRuleRepository rules) {
+        this.rules = rules;
         this.transactions = transactions;
         this.budgets = budgets;
         this.profiles = profiles;
@@ -38,6 +42,7 @@ public class DataResetService {
     public ResetResult reset(Long userId, boolean includeName) {
         long deletedTransactions = transactions.deleteAllForUser(userId);
         long deletedBudgets = budgets.deleteAllForUser(userId);
+        rules.deleteAllForUser(userId);
         boolean nameRemoved = false;
         if (includeName && profiles.existsById(userId)) {
             profiles.deleteById(userId);

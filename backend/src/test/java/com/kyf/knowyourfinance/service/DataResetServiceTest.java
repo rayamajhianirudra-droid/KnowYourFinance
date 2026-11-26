@@ -2,6 +2,7 @@ package com.kyf.knowyourfinance.service;
 
 import com.kyf.knowyourfinance.dto.DataSummary;
 import com.kyf.knowyourfinance.dto.ResetResult;
+import com.kyf.knowyourfinance.repository.CategoryRuleRepository;
 import com.kyf.knowyourfinance.repository.MonthlyBudgetRepository;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
 import com.kyf.knowyourfinance.repository.UserProfileRepository;
@@ -21,7 +22,8 @@ class DataResetServiceTest {
     private final TransactionRepository transactions = mock(TransactionRepository.class);
     private final MonthlyBudgetRepository budgets = mock(MonthlyBudgetRepository.class);
     private final UserProfileRepository profiles = mock(UserProfileRepository.class);
-    private final DataResetService service = new DataResetService(transactions, budgets, profiles);
+    private final CategoryRuleRepository rules = mock(CategoryRuleRepository.class);
+    private final DataResetService service = new DataResetService(transactions, budgets, profiles, rules);
 
     @Test
     void summaryReportsTheCountsForThatUser() {
@@ -37,6 +39,7 @@ class DataResetServiceTest {
         when(budgets.deleteAllForUser(1L)).thenReturn(3);
 
         ResetResult result = service.reset(1L, false);
+        verify(rules).deleteAllForUser(1L);
 
         assertEquals(38, result.deletedTransactions());
         assertEquals(3, result.deletedBudgets());
