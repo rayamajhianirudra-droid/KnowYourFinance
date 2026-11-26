@@ -1,13 +1,17 @@
 package com.kyf.knowyourfinance.controller;
 
+import com.kyf.knowyourfinance.dto.SplitRequest;
 import com.kyf.knowyourfinance.model.Transaction;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
+import com.kyf.knowyourfinance.service.SplitService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 
 /**
  * The basic CRUD (Create, Read, Update, Delete) endpoints for
@@ -31,9 +35,36 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionRepository transactionRepository;
+    private final SplitService splitService;
 
-    public TransactionController(TransactionRepository transactionRepository) {
+    public TransactionController(TransactionRepository transactionRepository, SplitService splitService) {
         this.transactionRepository = transactionRepository;
+        this.splitService = splitService;
+    }
+
+    /** Divides one charge into several category lines that add up to its total. */
+    @PostMapping("/{id}/split")
+    public ResponseEntity<List<Transaction>> split(@PathVariable Long id, @RequestBody SplitRequest request) {
+        try {
+            return ResponseEntity.ok(splitService.split(id, request));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /** Puts a split receipt back together as one transaction. */
+    @DeleteMapping("/{id}/split")
+    public ResponseEntity<Transaction> join(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(splitService.join(id));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> badSplit(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
 
     /**

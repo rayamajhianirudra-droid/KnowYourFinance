@@ -2255,3 +2255,71 @@
   gap: var(--space-1);
   margin-top: var(--space-3);
 }
+
+/* Splitting one receipt into several category lines */
+.split-badge {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+.dialog--wide {
+  width: min(640px, 100%);
+}
+
+.split__summary {
+  margin: 0 0 var(--space-2);
+}
+
+.split__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.split__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) 96px auto 32px;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.split__spacer {
+  display: block;
+  width: 32px;
+}
+
+.split__add {
+  margin-top: var(--space-1);
+}
+
+.split__status {
+  margin: var(--space-2) 0 0;
+  font-weight: 600;
+}
+
+.split__status--ok {
+  color: var(--color-positive);
+}
+
+.split__status--over {
+  color: var(--color-over);
+}
+
+@media (max-width: 560px) {
+  .split__line {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .split__label {
+    grid-column: 1 / -1;
+  }
+}

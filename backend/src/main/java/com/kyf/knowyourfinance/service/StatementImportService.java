@@ -144,6 +144,12 @@ public class StatementImportService {
         for (Transaction existing : transactionRepository.findByUserIdAndDateBetween(userId, first, last)) {
             keys.add(duplicateKey(existing.getDate(), existing.getDescription(),
                     existing.getAmount(), existing.getType()));
+            if (existing.getSplitGroup() != null) {
+                // A split receipt no longer matches the bank's single line,
+                // so also remember the original so it is not imported again.
+                keys.add(duplicateKey(existing.getDate(), existing.getSplitSourceDescription(),
+                        existing.getSplitSourceAmount(), existing.getType()));
+            }
         }
         return keys;
     }

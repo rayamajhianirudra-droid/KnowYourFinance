@@ -3,6 +3,7 @@ package com.kyf.knowyourfinance.controller;
 import com.kyf.knowyourfinance.model.Transaction;
 import com.kyf.knowyourfinance.model.TransactionType;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
+import com.kyf.knowyourfinance.service.SplitService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -14,6 +15,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
+import com.kyf.knowyourfinance.dto.SplitRequest;
+import java.util.NoSuchElementException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -45,6 +49,9 @@ class TransactionControllerTest {
 
     @MockBean
     private TransactionRepository transactionRepository;
+
+    @MockBean
+    private SplitService splitService;
 
     @Test
     void creatingAValidTransactionReturns200() throws Exception {
@@ -206,5 +213,56 @@ class TransactionControllerTest {
                         .param("end", "2026-09-30"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].description").value("PAYROLL DEPOSIT"));
+    }
+
+    @Test
+    void splittingAReceiptReturnsTheNewLines() throws Exception {
+        Transaction food = new Transaction(LocalDate.of(2026, 9, 3), "WALMART - Food",
+                new BigDecimal("80.00"), TransactionType.EXPENSE,
+                com.kyf.knowyourfinance.model.TransactionCategory.GROCERIES, 1L);
+        when(splitService.split(org.mockito.ArgumentMatchers.eq(5L), any(SplitRequest.class)))
+                .thenReturn(List.of(food));
+
+        mockMvc.perform(post("/api/transactions/5/split")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"parts\":[{\"amount\":80,\"category\":\"GROCERIES\",\"label\":\"Food\"},"
+                                + "{\"amount\":120,\"category\":\"SHOPPING\",\"label\":\"TV\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].description").value("WALMART - Food"));
+    }
+
+    @Test
+    void aBadSplitReturns400WithTheReason() throws Exception {
+        when(splitService.split(org.mockito.ArgumentMatchers.eq(5L), any(SplitRequest.class)))
+                .thenThrow(new IllegalArgumentException("The lines add up to 180 but the receipt total is 200."));
+
+        mockMvc.perform(post("/api/transactions/5/split")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"parts\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("The lines add up to 180 but the receipt total is 200."));
+    }
+
+    @Test
+    void splittingAMissingTransactionReturns404() throws Exception {
+        when(splitService.split(org.mockito.ArgumentMatchers.eq(404L), any(SplitRequest.class)))
+                .thenThrow(new NoSuchElementException("Transaction not found."));
+
+        mockMvc.perform(post("/api/transactions/404/split")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"parts\":[]}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void joiningASplitReceiptReturnsTheJoinedTransaction() throws Exception {
+        Transaction joined = new Transaction(LocalDate.of(2026, 9, 3), "WALMART",
+                new BigDecimal("200.00"), TransactionType.EXPENSE,
+                com.kyf.knowyourfinance.model.TransactionCategory.SHOPPING, 1L);
+        when(splitService.join(5L)).thenReturn(joined);
+
+        mockMvc.perform(delete("/api/transactions/5/split"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.description").value("WALMART"));
     }
 }

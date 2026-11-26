@@ -1,16 +1,11 @@
 import PageHero from "./PageHero";
 import { useEffect, useMemo, useState } from "react";
-import { listTransactions, updateTransaction, deleteTransaction } from "../api";
-import { formatCurrency, categoryLabel } from "../utils/format";
+import { listTransactions, updateTransaction, deleteTransaction, joinSplit } from "../api";
+import { formatCurrency, categoryLabel, CATEGORIES } from "../utils/format";
 import { downloadTransactionsCsv } from "../utils/csvExport";
-import { SearchIcon, ArrowUpIcon, ArrowDownIcon, EditIcon, TrashIcon, CheckCircleIcon, XIcon } from "./Icons";
+import { SearchIcon, ArrowUpIcon, ArrowDownIcon, EditIcon, TrashIcon, CheckCircleIcon, XIcon, SplitIcon, JoinIcon } from "./Icons";
+import SplitDialog from "./SplitDialog";
 import EmptyState from "./EmptyState";
-
-const CATEGORIES = [
-  "GROCERIES", "DINING", "RENT_MORTGAGE", "UTILITIES", "SUBSCRIPTIONS",
-  "TRANSPORTATION", "SHOPPING", "ENTERTAINMENT", "HEALTHCARE", "EDUCATION",
-  "TRAVEL", "INCOME", "TRANSFER", "OTHER",
-];
 
 const TYPE_FILTERS = [
   { id: "ALL", label: "All" },
@@ -54,6 +49,11 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
   // design system instead of popping a browser-chrome alert.
   const [deletingId, setDeletingId] = useState(null);
   const [deleteBusyId, setDeleteBusyId] = useState(null);
+
+  // Splitting one receipt into several category lines. splitting holds
+  // the transaction whose dialog is open; joiningId the group being merged.
+  const [splitting, setSplitting] = useState(null);
+  const [joiningId, setJoiningId] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -129,6 +129,30 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       setError(err.message);
     } finally {
       setDeleteBusyId(null);
+    }
+  }
+
+  function handleSplitDone(originalId, created) {
+    setTransactions((prev) => [
+      ...prev.filter((row) => row.id !== originalId && !created.some((c) => c.id === row.id)),
+      ...created,
+    ]);
+    setSplitting(null);
+  }
+
+  async function handleJoin(t) {
+    setJoiningId(t.id);
+    try {
+      const joined = await joinSplit(t.id);
+      setTransactions((prev) =>
+        prev
+          .filter((row) => row.id === joined.id || row.splitGroup !== t.splitGroup)
+          .map((row) => (row.id === joined.id ? joined : row))
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setJoiningId(null);
     }
   }
 
@@ -410,7 +434,17 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
                 return (
                   <tr key={t.id}>
                     <td className="cell-date" data-label="Date">{t.date}</td>
-                    <td className="cell-description" data-label="Description">{t.description}</td>
+                    <td className="cell-description" data-label="Description">
+                      {t.description}
+                      {t.splitGroup && (
+                        <span
+                          className="split-badge"
+                          title={`Part of a split receipt. Original charge ${formatCurrency(t.splitSourceAmount)}.`}
+                        >
+                          split
+                        </span>
+                      )}
+                    </td>
                     <td>
                       <select
                         className="category-select"
@@ -467,6 +501,28 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
                         </div>
                       ) : (
                         <div className="row-actions">
+                          {t.splitGroup ? (
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => handleJoin(t)}
+                              disabled={joiningId === t.id}
+                              aria-label={`Join split receipt ${t.description}`}
+                              title="Join the split lines back into one transaction"
+                            >
+                              <JoinIcon width={16} height={16} aria-hidden="true" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => setSplitting(t)}
+                              aria-label={`Split ${t.description}`}
+                              title="Split into several categories"
+                            >
+                              <SplitIcon width={16} height={16} aria-hidden="true" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="icon-btn"
@@ -497,6 +553,14 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
             Showing {filtered.length} of {transactions.length} transaction{transactions.length === 1 ? "" : "s"}.
           </p>
         </div>
+      )}
+
+      {splitting && (
+        <SplitDialog
+          transaction={splitting}
+          onClose={() => setSplitting(null)}
+          onSplit={handleSplitDone}
+        />
       )}
     </div>
   );

@@ -135,6 +135,31 @@ class StatementImportServiceTest {
     }
 
     @Test
+    void aReceiptThatWasSplitIsNotImportedAgainAsOneCharge() throws IOException {
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-03,WALMART SUPERCENTER,-200.00
+                """;
+
+        // The user split this charge into food and a TV, so the database now
+        // holds two smaller rows that both remember the original charge.
+        Transaction food = new Transaction(LocalDate.of(2026, 9, 3), "WALMART SUPERCENTER - Food",
+                new BigDecimal("80.00"), TransactionType.EXPENSE, TransactionCategory.GROCERIES, 1L);
+        food.markAsSplitPart("g1", "WALMART SUPERCENTER", new BigDecimal("200.0000"));
+        Transaction tv = new Transaction(LocalDate.of(2026, 9, 3), "WALMART SUPERCENTER - TV",
+                new BigDecimal("120.00"), TransactionType.EXPENSE, TransactionCategory.SHOPPING, 1L);
+        tv.markAsSplitPart("g1", "WALMART SUPERCENTER", new BigDecimal("200.0000"));
+        when(transactionRepository.findByUserIdAndDateBetween(
+                eq(1L), eq(LocalDate.of(2026, 9, 3)), eq(LocalDate.of(2026, 9, 3))))
+                .thenReturn(List.of(food, tv));
+
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
+
+        assertEquals(0, response.getTransactionsSaved());
+        assertEquals(1, response.getDuplicatesSkipped());
+    }
+
+    @Test
     void reportsHowManyRowsFailedToParse() throws IOException {
         // Row 2 has a non-numeric amount and should be dropped and
         // counted, while row 1 and row 3 still get imported (FR-104).

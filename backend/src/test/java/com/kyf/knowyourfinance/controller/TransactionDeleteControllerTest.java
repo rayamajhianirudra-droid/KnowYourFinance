@@ -1,6 +1,7 @@
 package com.kyf.knowyourfinance.controller;
 
 import com.kyf.knowyourfinance.repository.TransactionRepository;
+import com.kyf.knowyourfinance.service.SplitService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -26,6 +27,9 @@ class TransactionDeleteControllerTest {
 
     @MockBean
     private TransactionRepository transactionRepository;
+
+    @MockBean
+    private SplitService splitService;
 
     @Test
     void deletingAnExistingTransactionReturns204AndRemovesIt() throws Exception {

@@ -191,6 +191,36 @@ export async function deleteTransaction(id) {
 }
 
 /**
+ * Divides one transaction into several category lines (a Walmart receipt
+ * with food and a TV, say). parts is [{ amount, category, label }] and the
+ * amounts have to add up to the original total. Resolves to the new lines.
+ */
+export async function splitTransaction(id, parts) {
+  const response = await fetch(`${API_BASE}/transactions/${id}/split`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ parts }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Failed to split transaction (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Puts a split receipt back together as one transaction. */
+export async function joinSplit(id) {
+  const response = await fetch(`${API_BASE}/transactions/${id}/split`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Failed to join transaction (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
  * Lists every transaction for the current user, most recent logic
  * left to the backend/display layer (the API itself doesn't sort).
  */
