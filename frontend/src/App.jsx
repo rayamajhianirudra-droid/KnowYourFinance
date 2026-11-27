@@ -142,6 +142,7 @@ function App() {
               refreshKey={refreshKey}
               onUploadClick={goToUpload}
               onAddClick={goToManual}
+              onSampleLoaded={handleImported}
               onViewTransactions={goToTransactions}
             />
           )}
