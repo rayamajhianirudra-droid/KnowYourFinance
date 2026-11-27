@@ -1,5 +1,7 @@
 package com.kyf.knowyourfinance.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.kyf.knowyourfinance.auth.AccountPrincipal;
 import com.kyf.knowyourfinance.dto.*;
 import com.kyf.knowyourfinance.model.*;
 import com.kyf.knowyourfinance.service.BudgetService;
@@ -17,9 +19,9 @@ public class BudgetController {
     private final BudgetService service;
     public BudgetController(BudgetService service) { this.service = service; }
 
-    private YearMonth period(Long userId, int year, int month) {
-        if (userId < 1 || year < 1900 || year > 9999 || month < 1 || month > 12)
-            throw new IllegalArgumentException("Choose a valid user and month (1900–9999).");
+    private YearMonth period(int year, int month) {
+        if (year < 1900 || year > 9999 || month < 1 || month > 12)
+            throw new IllegalArgumentException("Choose a valid month (1900–9999).");
         return YearMonth.of(year, month);
     }
     private void spendingCategory(TransactionCategory category) {
@@ -27,20 +29,23 @@ public class BudgetController {
             throw new IllegalArgumentException("Choose a spending category, not Income.");
     }
     @GetMapping
-    public List<BudgetProgress> list(@RequestParam Long userId, @RequestParam int year, @RequestParam int month) {
-        return service.progress(userId, period(userId, year, month));
+    public List<BudgetProgress> list(@AuthenticationPrincipal AccountPrincipal account, @RequestParam int year, @RequestParam int month) {
+        Long userId = account.ownerId();
+        return service.progress(userId, period(year, month));
     }
     @PutMapping("/{category}")
-    public MonthlyBudget save(@RequestParam Long userId, @RequestParam int year, @RequestParam int month,
+    public MonthlyBudget save(@AuthenticationPrincipal AccountPrincipal account, @RequestParam int year, @RequestParam int month,
             @PathVariable TransactionCategory category, @Valid @RequestBody BudgetRequest request) {
-        YearMonth period = period(userId, year, month);
+        Long userId = account.ownerId();
+        YearMonth period = period(year, month);
         spendingCategory(category);
         return service.save(userId, period, category, request.limitAmount());
     }
     @DeleteMapping("/{category}")
-    public ResponseEntity<Void> remove(@RequestParam Long userId, @RequestParam int year, @RequestParam int month,
+    public ResponseEntity<Void> remove(@AuthenticationPrincipal AccountPrincipal account, @RequestParam int year, @RequestParam int month,
             @PathVariable TransactionCategory category) {
-        YearMonth period = period(userId, year, month);
+        Long userId = account.ownerId();
+        YearMonth period = period(year, month);
         spendingCategory(category);
         return service.remove(userId, period, category) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }

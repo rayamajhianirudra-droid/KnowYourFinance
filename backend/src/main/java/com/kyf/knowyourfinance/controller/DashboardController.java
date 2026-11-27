@@ -1,5 +1,7 @@
 package com.kyf.knowyourfinance.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.kyf.knowyourfinance.auth.AccountPrincipal;
 import com.kyf.knowyourfinance.dto.MonthlyReportResponse;
 import com.kyf.knowyourfinance.dto.MonthlySummary;
 import com.kyf.knowyourfinance.service.DashboardService;
@@ -32,7 +34,7 @@ public class DashboardController {
     }
 
     /**
-     * GET /api/dashboard/report?userId=1&year=2026&month=9
+     * GET /api/dashboard/report?year=2026&month=9
      *
      * This single endpoint IS the feature we've been building the whole
      * app's data layer toward: the user picks a month and year, and gets
@@ -41,14 +43,15 @@ public class DashboardController {
      */
     @GetMapping("/report")
     public MonthlyReportResponse monthlyReport(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal AccountPrincipal account,
             @RequestParam int year,
             @RequestParam int month) {
+        Long userId = account.ownerId();
         return dashboardService.getMonthlyReport(userId, year, month);
     }
 
     /**
-     * GET /api/dashboard/report-range?userId=1&start=2026-09-01&end=2026-09-15
+     * GET /api/dashboard/report-range?start=2026-09-01&end=2026-09-15
      *
      * The same report shape as /report, but for an arbitrary date range
      * instead of a whole calendar month - this is what the dashboard's
@@ -56,14 +59,15 @@ public class DashboardController {
      */
     @GetMapping("/report-range")
     public MonthlyReportResponse reportForRange(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal AccountPrincipal account,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        Long userId = account.ownerId();
         return dashboardService.getReportForRange(userId, start, end);
     }
 
     /**
-     * GET /api/dashboard/trends?userId=1&year=2026&month=10&monthsBack=6
+     * GET /api/dashboard/trends?year=2026&month=10&monthsBack=6
      *
      * Returns one summary per month for a trailing window of months
      * (defaulting to the last 6), ending at the given year/month -
@@ -72,10 +76,11 @@ public class DashboardController {
      */
     @GetMapping("/trends")
     public List<MonthlySummary> trends(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal AccountPrincipal account,
             @RequestParam int year,
             @RequestParam int month,
             @RequestParam(defaultValue = "6") int monthsBack) {
+        Long userId = account.ownerId();
         return dashboardService.getTrends(userId, year, month, monthsBack);
     }
 }

@@ -106,12 +106,7 @@ public class Transaction {
     private TransactionCategory category;
 
     /**
-     * Which user this transaction belongs to. For now this is a plain
-     * Long placeholder (no real User entity or login yet, per today's
-     * decision to defer auth). Once we build accounts, this becomes a
-     * proper relationship to a User entity - but every transaction needs
-     * to belong to *someone* from day one, so the dashboard can eventually
-     * filter "show me only my data" instead of everyone's.
+     * Data owner selected by the authenticated account or by the legacy dataset.
      */
     @NotNull
     private Long userId;

@@ -30,22 +30,29 @@ export function transactionsToCsv(transactions) {
     ];
   });
 
-  return [HEADERS, ...rows].map((row) => row.map(escapeCSV).join(",")).join("\r\n");
+  return csvRows([HEADERS, ...rows]);
+}
+
+export function csvRows(rows) {
+  return rows.map((row) => row.map(escapeCSV).join(",")).join("\r\n");
 }
 
 /** Saves the transactions as a CSV file through the browser's download. */
 export function downloadTransactionsCsv(transactions) {
-  const blob = new Blob(["\uFEFF", transactionsToCsv(transactions)], {
+  const today = new Date().toLocaleDateString("en-CA");
+  downloadCsv(`know-your-finance-${today}.csv`, transactionsToCsv(transactions));
+}
+
+export function downloadCsv(filename, content) {
+  const blob = new Blob(["\uFEFF", content], {
     type: "text/csv;charset=utf-8;",
   });
 
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
-  const today = new Date().toLocaleDateString("en-CA");
-
   link.href = url;
-  link.download = `know-your-finance-${today}.csv`;
+  link.download = filename;
 
   document.body.appendChild(link);
   link.click();

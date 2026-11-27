@@ -89,6 +89,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorBody(ex.getMessage(), null));
     }
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleStatus(org.springframework.web.server.ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode()).body(errorBody(ex.getReason(), null));
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleMalformedRequest() {
+        return ResponseEntity.badRequest().body(errorBody("Malformed request.", null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
         return ResponseEntity.internalServerError().body(errorBody(

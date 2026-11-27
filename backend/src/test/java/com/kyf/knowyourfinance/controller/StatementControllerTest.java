@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -30,7 +31,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Covers the upload endpoint's edges: empty files, the preview switch,
  * and the error message for oversized files (FR-105 and NFR-06).
  */
+@org.springframework.context.annotation.Import(com.kyf.knowyourfinance.auth.SecurityConfiguration.class)
 @WebMvcTest(StatementController.class)
+@AuthenticatedTestAccount
 class StatementControllerTest {
 
     @Autowired
@@ -49,7 +52,7 @@ class StatementControllerTest {
     @Test
     void anEmptyFileIsRejectedWithoutTouchingTheImportService() throws Exception {
         mockMvc.perform(multipart("/api/statements/upload")
-                        .file(csvFile(new byte[0])).param("userId", "1"))
+                        .file(csvFile(new byte[0])).with(csrf()))
                 .andExpect(status().isBadRequest());
 
         verify(statementImportService, never()).importFile(any(InputStream.class), any(), any(), eq(true));
@@ -61,7 +64,7 @@ class StatementControllerTest {
                 .thenReturn(EMPTY_RESULT);
 
         mockMvc.perform(multipart("/api/statements/upload")
-                        .file(csvFile("Date,Description,Amount\n".getBytes())).param("userId", "1"))
+                        .file(csvFile("Date,Description,Amount\n".getBytes())).with(csrf()))
                 .andExpect(status().isOk());
 
         verify(statementImportService).importFile(any(InputStream.class), any(), eq(1L), eq(true));
@@ -74,18 +77,10 @@ class StatementControllerTest {
 
         mockMvc.perform(multipart("/api/statements/upload")
                         .file(csvFile("Date,Description,Amount\n".getBytes()))
-                        .param("userId", "1").param("preview", "true"))
+                        .param("preview", "true").with(csrf()))
                 .andExpect(status().isOk());
 
         verify(statementImportService).importFile(any(InputStream.class), any(), eq(1L), eq(false));
-    }
-
-    @Test
-    void missingUserIdIsAClientErrorNotACrash() throws Exception {
-        mockMvc.perform(multipart("/api/statements/upload")
-                        .file(csvFile("Date,Description,Amount\n".getBytes())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Missing or invalid request parameter: userId"));
     }
 
     @Test
@@ -116,7 +111,7 @@ class StatementControllerTest {
         mockMvc.perform(multipart("/api/statements/upload-batch")
                         .file(batchFile("jan.csv", "Date,Description,Amount\n".getBytes()))
                         .file(batchFile("feb.xlsx", "x".getBytes()))
-                        .param("userId", "1"))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.files.length()").value(2))
                 .andExpect(jsonPath("$.files[0].fileName").value("jan.csv"))
@@ -136,7 +131,7 @@ class StatementControllerTest {
             request.file(batchFile("month" + i + ".csv", "Date,Description,Amount\n".getBytes()));
         }
 
-        mockMvc.perform(request.param("userId", "1"))
+        mockMvc.perform(request.with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.files.length()").value(12));
     }
@@ -148,7 +143,7 @@ class StatementControllerTest {
             request.file(batchFile("month" + i + ".csv", "Date,Description,Amount\n".getBytes()));
         }
 
-        mockMvc.perform(request.param("userId", "1"))
+        mockMvc.perform(request.with(csrf()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         "You can upload at most 12 files at a time. You chose 13."));
@@ -158,7 +153,7 @@ class StatementControllerTest {
 
     @Test
     void aBatchWithNoFilesIsRejected() throws Exception {
-        mockMvc.perform(multipart("/api/statements/upload-batch").param("userId", "1"))
+        mockMvc.perform(multipart("/api/statements/upload-batch").with(csrf()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Choose at least one file."));
     }
@@ -173,7 +168,7 @@ class StatementControllerTest {
         mockMvc.perform(multipart("/api/statements/upload-batch")
                         .file(batchFile("good.csv", "Date,Description,Amount\n".getBytes()))
                         .file(batchFile("notes.pdf", "pdf".getBytes()))
-                        .param("userId", "1"))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.files[0].success").value(true))
                 .andExpect(jsonPath("$.files[1].success").value(false))
@@ -187,7 +182,7 @@ class StatementControllerTest {
     void anEmptyFileInABatchIsReportedWithoutCallingTheService() throws Exception {
         mockMvc.perform(multipart("/api/statements/upload-batch")
                         .file(batchFile("empty.csv", new byte[0]))
-                        .param("userId", "1"))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.files[0].success").value(false))
                 .andExpect(jsonPath("$.files[0].message").value("The file is empty."));
@@ -202,7 +197,7 @@ class StatementControllerTest {
 
         mockMvc.perform(multipart("/api/statements/upload-batch")
                         .file(batchFile("broken.xlsx", "not really a workbook".getBytes()))
-                        .param("userId", "1"))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.files[0].success").value(false))
                 .andExpect(jsonPath("$.files[0].message").value(
@@ -216,7 +211,7 @@ class StatementControllerTest {
 
         mockMvc.perform(multipart("/api/statements/upload-batch")
                         .file(batchFile("jan.csv", "Date,Description,Amount\n".getBytes()))
-                        .param("userId", "1").param("preview", "true"))
+                        .param("preview", "true").with(csrf()))
                 .andExpect(status().isOk());
 
         verify(statementImportService).importFile(any(InputStream.class), eq("jan.csv"), eq(1L), eq(false));

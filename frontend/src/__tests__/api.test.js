@@ -18,7 +18,9 @@ function respondWith(status, body) {
     status,
     json: () => (body === undefined ? Promise.reject(new Error("no body")) : Promise.resolve(body)),
   };
-  globalThis.fetch = vi.fn().mockResolvedValue(response);
+  globalThis.fetch = vi.fn(async (url) => url.endsWith("/auth/csrf")
+    ? { ok: true, json: async () => ({ headerName: "X-CSRF-TOKEN", token: "mock-token" }) }
+    : response);
 }
 
 beforeEach(() => vi.restoreAllMocks());
@@ -29,7 +31,7 @@ describe("report requests", () => {
     respondWith(200, { totalIncome: 100 });
     const report = await getMonthlyReport(2026, 9);
     expect(report.totalIncome).toBe(100);
-    expect(globalThis.fetch.mock.calls[0][0]).toBe("/api/dashboard/report?userId=1&year=2026&month=9");
+    expect(globalThis.fetch.mock.calls[0][0]).toBe("/api/dashboard/report?year=2026&month=9");
   });
 
   it("passes a custom date range through unchanged", async () => {
@@ -55,8 +57,8 @@ describe("uploadStatement", () => {
     respondWith(200, { transactionsSaved: 3 });
     const file = new File(["Date,Description,Amount"], "s.csv", { type: "text/csv" });
     const result = await uploadStatement(file);
-    const [url, options] = globalThis.fetch.mock.calls[0];
-    expect(url).toBe("/api/statements/upload?userId=1&preview=false");
+    const [url, options] = globalThis.fetch.mock.calls.at(-1);
+    expect(url).toBe("/api/statements/upload?preview=false");
     expect(options.method).toBe("POST");
     expect(options.body).toBeInstanceOf(FormData);
     expect(result.transactionsSaved).toBe(3);
@@ -65,7 +67,7 @@ describe("uploadStatement", () => {
   it("uses preview mode when asked", async () => {
     respondWith(200, {});
     await uploadStatement(new File(["x"], "s.csv"), { preview: true });
-    expect(globalThis.fetch.mock.calls[0][0]).toContain("preview=true");
+    expect(globalThis.fetch.mock.calls.at(-1)[0]).toContain("preview=true");
   });
 
   it("shows the backend's own message, such as the 10MB limit", async () => {
@@ -84,12 +86,13 @@ describe("uploadStatement", () => {
 describe("addTransaction and updateTransaction", () => {
   const entry = { date: "2026-09-02", description: "Coffee", amount: 4.5, type: "EXPENSE", category: "DINING" };
 
-  it("posts the entry together with the current user id", async () => {
+  it("posts the entry with the CSRF token", async () => {
     respondWith(200, { id: 9 });
     await addTransaction(entry);
-    const [, options] = globalThis.fetch.mock.calls[0];
+    const [, options] = globalThis.fetch.mock.calls.at(-1);
     expect(options.method).toBe("POST");
-    expect(JSON.parse(options.body)).toEqual({ ...entry, userId: 1 });
+    expect(JSON.parse(options.body)).toEqual(entry);
+    expect(options.headers.get("X-CSRF-TOKEN")).toBe("mock-token");
   });
 
   it("exposes field errors so the form can highlight the bad field", async () => {
@@ -102,7 +105,7 @@ describe("addTransaction and updateTransaction", () => {
   it("updates by id with PUT", async () => {
     respondWith(200, { id: 9 });
     await updateTransaction(9, entry);
-    const [url, options] = globalThis.fetch.mock.calls[0];
+    const [url, options] = globalThis.fetch.mock.calls.at(-1);
     expect(url).toBe("/api/transactions/9");
     expect(options.method).toBe("PUT");
   });
@@ -116,8 +119,8 @@ describe("uploading several statements", () => {
 
     await uploadStatements([a, b], { preview: true });
 
-    const [url, init] = globalThis.fetch.mock.calls[0];
-    expect(url).toBe("/api/statements/upload-batch?userId=1&preview=true");
+    const [url, init] = globalThis.fetch.mock.calls.at(-1);
+    expect(url).toBe("/api/statements/upload-batch?preview=true");
     expect(init.method).toBe("POST");
     expect(init.body.getAll("files")).toEqual([a, b]);
   });

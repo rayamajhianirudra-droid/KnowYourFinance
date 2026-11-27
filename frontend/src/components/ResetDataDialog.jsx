@@ -49,7 +49,7 @@ function ResetDataDialog({ onClose, onDeleted, onUpload, hasName }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [busy, onClose]);
 
-  const hasData = summary && (summary.transactions > 0 || summary.budgets > 0);
+  const hasData = summary && (summary.transactions > 0 || summary.budgets > 0 || summary.goals > 0 || summary.subscriptionReviews > 0);
   const canDelete = typed === CONFIRM_WORD && !busy && Boolean(hasData);
 
   async function handleBackup() {
@@ -103,7 +103,10 @@ function ResetDataDialog({ onClose, onDeleted, onUpload, hasName }) {
               <>
                 <p>
                   This permanently removes {plural(summary.transactions, "transaction")} and{" "}
-                  {plural(summary.budgets, "budget")}. It cannot be undone.
+                  {plural(summary.budgets, "budget")}.
+                  {summary.goals > 0 && ` It also removes ${plural(summary.goals, "savings goal")}.`}
+                  {summary.subscriptionReviews > 0 && ` It also removes ${plural(summary.subscriptionReviews, "subscription review")}.`}
+                  {" "}It cannot be undone.
                 </p>
                 <button
                   type="button"
