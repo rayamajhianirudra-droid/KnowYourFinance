@@ -2255,3 +2255,51 @@
   gap: var(--space-1);
   margin-top: var(--space-3);
 }
+
+.account-screen {
+  display: grid;
+  place-items: center;
+  min-height: 85vh;
+}
+
+.account-card {
+  width: min(100%, 26rem);
+  border: 1px solid var(--color-border, #d0d5dd);
+  border-radius: 1rem;
+  padding: clamp(1rem, 5vw, 2rem);
+}
+
+.account-form {
+  display: grid;
+  gap: 0.65rem;
+  margin-block: 1rem;
+}
+
+.account-form input,
+.account-card button,
+.account-actions button {
+  min-height: 44px;
+  padding: 0.45rem 0.75rem;
+}
+
+.account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.spending-scenario fieldset label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spending-scenario fieldset input[type="number"],
+.spending-scenario fieldset select {
+  max-width: 100%;
+}
+
+.spending-scenario details + details {
+  margin-top: 0.75rem;
+}

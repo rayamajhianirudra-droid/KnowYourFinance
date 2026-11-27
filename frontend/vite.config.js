@@ -12,6 +12,7 @@ export default defineConfig({
       '/api': 'http://localhost:8080',
     },
   },
+  preview: { proxy: { "/api": "http://localhost:8080" } },
   test: {
     // Component and helper tests run in a simulated browser, no real one needed.
     environment: 'jsdom',

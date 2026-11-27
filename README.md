@@ -97,3 +97,41 @@ Milestone 4 adds Docker, a build and publish pipeline, faster imports and trends
 ## Monthly category budgets
 
 Open **Budgets** to set category limits for a month, track expense progress, and see alerts at 80% and over budget. Limits are saved in the database; removing one leaves transactions untouched. See [the budget guide](docs/features/monthly-budgets.md) for behavior, API endpoints and deployment notes.
+
+## Accounts and the existing database
+
+Open the Compose web address, select **Create an account**, and use a synthetic
+email and a unique password to demo local sign-up. Reload to check that the
+session is restored, then try signing out and signing back in. The session uses
+an HttpOnly cookie, and write requests use a session-bound CSRF token. The
+database stores BCrypt password hashes. Sessions expire after 30 minutes of
+inactivity and end when the backend restarts.
+
+Compose supports localhost HTTP by default. Set `KYF_SECURE_COOKIES=true`
+and serve the app over HTTPS outside local development. Keep the backend port
+private and route traffic through nginx. For a standalone Vite and Maven setup
+on localhost, set `KYF_SECURE_COOKIES=false` for Maven and use the Vite URL.
+Credential attempts are limited per client address and across each backend
+process. Multi-replica deployments should also enforce shared limits at ingress.
+
+Hibernate adds the `kyf_accounts` table to the existing database. Legacy records
+keep their original owners. Each authenticated account uses the negative of its
+generated ID as its data owner, and registration rolls back if that owner already
+has financial records. The backend enables PostgreSQL row-level security on the account table with no
+policies for other roles. Use the account table owner as the backend database
+role, and restrict access to any roles that can bypass row-level security.
+
+To assign legacy data, back up PostgreSQL, restore it to an isolated database,
+and rehearse the assignment there. Confirm the old owner and verify the recipient
+account's identity outside KYF. After the recipient signs up, obtain its numeric
+ID from `kyf_accounts` using database-admin access. Stop the app before running
+the script on the intended database. The destination account must be empty.
+
+```sh
+psql -v legacy_owner=1 -v account_id=2 -f docs/operations/assign-legacy-owner.sql
+```
+
+The script updates transactions, budgets, and the saved profile in one database
+transaction. It refuses to move data from a registered account or to a populated
+destination. After the move, restart the app and verify the counts using the
+recipient account.

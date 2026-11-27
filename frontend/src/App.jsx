@@ -1,3 +1,4 @@
+import AccountGate from "./components/AccountGate";
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import UploadStatement from "./components/UploadStatement";
@@ -29,6 +30,10 @@ const TABS = [
  * transaction list in sync without a bigger state-management tool.
  */
 function App() {
+  return <AccountGate>{(session) => <FinanceApp {...session} />}</AccountGate>;
+}
+
+function FinanceApp({ signOut, pending, error }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [refreshKey, setRefreshKey] = useState(0);
   const [fullName, setFullName] = useState(null);
@@ -131,6 +136,10 @@ function App() {
 
           <ThemeToggle />
           <ProfileBadge fullName={fullName} onSaved={setFullName} onDeleteData={() => setResetOpen(true)} />
+        </div>
+        <div className="content-container account-actions">
+          {error && <p role="alert">{error}</p>}
+          <button type="button" className="btn btn--secondary" onClick={signOut} disabled={pending}>Sign out</button>
         </div>
       </header>
 

@@ -1,5 +1,7 @@
 package com.kyf.knowyourfinance.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.kyf.knowyourfinance.auth.AccountPrincipal;
 import com.kyf.knowyourfinance.dto.DataSummary;
 import com.kyf.knowyourfinance.dto.ResetResult;
 import com.kyf.knowyourfinance.service.DataResetService;
@@ -14,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * GET /api/data/summary?userId=1 says how much data a user has.
- * DELETE /api/data?userId=1&confirm=DELETE removes it. The confirm word
+ * GET /api/data/summary says how much data a user has.
+ * DELETE /api/data?confirm=DELETE removes it. The confirm word
  * is required so a stray request can never wipe anything by accident.
  * includeName=true also removes the saved name.
  */
@@ -32,26 +34,20 @@ public class DataResetController {
     }
 
     @GetMapping("/summary")
-    public DataSummary summary(@RequestParam Long userId) {
-        checkUser(userId);
+    public DataSummary summary(@AuthenticationPrincipal AccountPrincipal account) {
+        Long userId = account.ownerId();
         return service.summary(userId);
     }
 
     @DeleteMapping
-    public ResetResult reset(@RequestParam Long userId,
+    public ResetResult reset(@AuthenticationPrincipal AccountPrincipal account,
                              @RequestParam(required = false) String confirm,
                              @RequestParam(defaultValue = "false") boolean includeName) {
-        checkUser(userId);
+        Long userId = account.ownerId();
         if (!CONFIRM_WORD.equals(confirm)) {
             throw new IllegalArgumentException("Type DELETE to confirm that you want to remove all your data.");
         }
         return service.reset(userId, includeName);
-    }
-
-    private static void checkUser(Long userId) {
-        if (userId == null || userId < 1) {
-            throw new IllegalArgumentException("Choose a valid user.");
-        }
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

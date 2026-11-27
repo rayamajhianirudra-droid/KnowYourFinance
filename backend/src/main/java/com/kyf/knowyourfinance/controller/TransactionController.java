@@ -1,5 +1,7 @@
 package com.kyf.knowyourfinance.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.kyf.knowyourfinance.auth.AccountPrincipal;
 import com.kyf.knowyourfinance.model.Transaction;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
 import jakarta.validation.Valid;
@@ -9,23 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * The basic CRUD (Create, Read, Update, Delete) endpoints for
- * transactions. Right now these are what a frontend would call directly
- * while we build it by hand; later, most transactions will arrive through
- * the statement-upload/parsing pipeline instead of this manual-entry API -
- * but we still need manual entry for things a bank statement wouldn't
- * capture (cash spending, manual corrections, etc.), and it's also the
- * simplest way to put test data in while the upload feature doesn't exist
- * yet.
- *
- * Every method takes a userId parameter for now instead of reading it
- * from a logged-in session, because there is no login yet (that's a
- * deliberate, explicit decision for this phase of the project - see the
- * comment on Transaction.userId). Once real auth exists, these methods
- * will stop taking userId as a parameter and will instead read "who is
- * making this request" from the authenticated session.
- */
 @RestController
 @RequestMapping("/api/transactions")
 public class TransactionController {
@@ -44,27 +29,28 @@ public class TransactionController {
      * automatically, with no manual "if (x == null)" checks needed here.
      */
     @PostMapping
-    public ResponseEntity<Transaction> create(@Valid @RequestBody Transaction transaction) {
-        Transaction saved = transactionRepository.save(transaction);
+    public ResponseEntity<Transaction> create(@AuthenticationPrincipal AccountPrincipal account, @Valid @RequestBody TransactionInput input) {
+        Transaction saved = transactionRepository.save(new Transaction(input.date(), input.description(),
+                input.amount(), input.type(), input.category(), account.ownerId()));
         return ResponseEntity.ok(saved);
     }
 
     /**
-     * GET /api/transactions?userId=1&start=2026-01-01&end=2026-01-31
+     * GET /api/transactions?start=2026-01-01&end=2026-01-31
      * Lists a user's transactions, optionally narrowed to a date range.
      * `required = false` on start/end means both are optional - if
      * omitted, we just return everything for that user.
      */
     @GetMapping
     public List<Transaction> list(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal AccountPrincipal account,
             @RequestParam(required = false) LocalDate start,
             @RequestParam(required = false) LocalDate end) {
         if (start != null && end != null) {
-            return transactionRepository.findByUserIdAndDateBetween(userId, start, end);
+            return transactionRepository.findByUserIdAndDateBetween(account.ownerId(), start, end);
         }
         // No range given: return everything for this user.
-        return transactionRepository.findByUserId(userId);
+        return transactionRepository.findByUserId(account.ownerId());
     }
 
     /**
@@ -74,8 +60,8 @@ public class TransactionController {
      * clean 404 instead of a null-pointer surprise.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Transaction> getById(@PathVariable Long id) {
-        return transactionRepository.findById(id)
+    public ResponseEntity<Transaction> getById(@AuthenticationPrincipal AccountPrincipal account, @PathVariable Long id) {
+        return transactionRepository.findByIdAndUserId(id, account.ownerId())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -99,16 +85,17 @@ public class TransactionController {
      * user left the category itself unchanged. It shouldn't keep
      * showing the "auto-guessed" marker after that.
      */
+    @org.springframework.transaction.annotation.Transactional
     @PutMapping("/{id}")
     public ResponseEntity<Transaction> update(
-            @PathVariable Long id, @Valid @RequestBody Transaction updates) {
-        return transactionRepository.findById(id)
+            @AuthenticationPrincipal AccountPrincipal account, @PathVariable Long id, @Valid @RequestBody TransactionInput updates) {
+        return transactionRepository.findByIdAndUserId(id, account.ownerId())
                 .map(existing -> {
-                    existing.setDate(updates.getDate());
-                    existing.setDescription(updates.getDescription());
-                    existing.setAmount(updates.getAmount());
-                    existing.setType(updates.getType());
-                    existing.setCategory(updates.getCategory());
+                    existing.setDate(updates.date());
+                    existing.setDescription(updates.description());
+                    existing.setAmount(updates.amount());
+                    existing.setType(updates.type());
+                    existing.setCategory(updates.category());
                     existing.setLowConfidence(false);
                     Transaction saved = transactionRepository.save(existing);
                     return ResponseEntity.ok(saved);
@@ -120,12 +107,12 @@ public class TransactionController {
      * DELETE /api/transactions/{id} - remove a transaction (e.g. the user
      * fixes a duplicate or a miscategorized import).
      */
+    @org.springframework.transaction.annotation.Transactional
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        if (!transactionRepository.existsById(id)) {
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal AccountPrincipal account, @PathVariable Long id) {
+        if (transactionRepository.deleteOwned(id, account.ownerId()) == 0) {
             return ResponseEntity.notFound().build();
         }
-        transactionRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }

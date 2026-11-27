@@ -1,5 +1,7 @@
 package com.kyf.knowyourfinance.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.kyf.knowyourfinance.auth.AccountPrincipal;
 import com.kyf.knowyourfinance.dto.BatchImportResponse;
 import com.kyf.knowyourfinance.dto.StatementImportResponse;
 import com.kyf.knowyourfinance.service.StatementImportService;
@@ -41,7 +43,7 @@ public class StatementController {
     }
 
     /**
-     * POST /api/statements/upload?userId=1
+     * POST /api/statements/upload
      * Body: multipart/form-data with a "file" field (CSV, TSV, TXT or XLSX).
      *
      * PDF statement support is a deliberate follow-up, not done here:
@@ -64,8 +66,9 @@ public class StatementController {
     @PostMapping("/upload")
     public ResponseEntity<StatementImportResponse> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam Long userId,
+            @AuthenticationPrincipal AccountPrincipal account,
             @RequestParam(defaultValue = "false") boolean preview) throws IOException {
+        Long userId = account.ownerId();
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -78,7 +81,7 @@ public class StatementController {
     }
 
     /**
-     * POST /api/statements/upload-batch?userId=1&preview=true
+     * POST /api/statements/upload-batch?preview=true
      * Body: multipart/form-data with up to 12 "files" fields.
      *
      * Each file runs through the same pipeline as a single upload, one
@@ -92,8 +95,9 @@ public class StatementController {
     @PostMapping("/upload-batch")
     public ResponseEntity<BatchImportResponse> uploadBatch(
             @RequestParam(value = "files", required = false) List<MultipartFile> files,
-            @RequestParam Long userId,
+            @AuthenticationPrincipal AccountPrincipal account,
             @RequestParam(defaultValue = "false") boolean preview) {
+        Long userId = account.ownerId();
 
         if (files == null || files.isEmpty()) {
             throw new BadUploadException("Choose at least one file.");

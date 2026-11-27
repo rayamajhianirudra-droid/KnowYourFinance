@@ -1,5 +1,6 @@
 package com.kyf.knowyourfinance.repository;
 
+import java.util.Optional;
 import com.kyf.knowyourfinance.model.Transaction;
 import com.kyf.knowyourfinance.model.TransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -164,4 +165,9 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM Transaction t WHERE t.userId = :userId")
     int deleteAllForUser(@Param("userId") Long userId);
+    Optional<Transaction> findByIdAndUserId(Long id, Long userId);
+
+    @Modifying
+    @Query("DELETE FROM Transaction t WHERE t.id = :id AND t.userId = :userId")
+    int deleteOwned(@Param("id") Long id, @Param("userId") Long userId);
 }

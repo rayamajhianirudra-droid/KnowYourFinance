@@ -1,7 +1,11 @@
 import { firstName } from "../utils/names";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { getMonthlyReport, getReportRange, listTransactions } from "../api";
+import { getMonthlyReport, getReportRange, listTransactions, listGoals, listSubscriptionDecisions } from "../api";
 import RecurringBills from "./RecurringBills";
+import SavingsGoals from "./SavingsGoals";
+import { summarizeHistory } from "../utils/financialPlanning";
+import MonthlyReportExport from "./MonthlyReportExport";
+import FinancialPlanning from "./FinancialPlanning";
 import { detectRecurring } from "../utils/recurring";
 import { categoryLabel, formatCurrency, formatDayCellCurrency, formatPercent } from "../utils/format";
 // The two chart components pull in the whole recharts library, which is
@@ -58,6 +62,28 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
   const [recent, setRecent] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
   const [recentLoading, setRecentLoading] = useState(true);
+  const [goals, setGoals] = useState(null);
+  const [subscriptions, setSubscriptions] = useState(null);
+  const [planningLoadFailed, setPlanningLoadFailed] = useState(false);
+  const today = todayInput();
+
+  useEffect(() => {
+    let active = true;
+    async function loadPlanning() {
+      try {
+        const [savedGoals, savedDecisions] = await Promise.all([listGoals(), listSubscriptionDecisions()]);
+        if (active) {
+          setGoals(savedGoals);
+          setSubscriptions(Object.fromEntries(savedDecisions.map((item) => [item.merchantKey, item.status])));
+          setPlanningLoadFailed(false);
+        }
+      } catch {
+        if (active) setPlanningLoadFailed(true);
+      }
+    }
+    loadPlanning();
+    return () => { active = false; };
+  }, [refreshKey]);
 
   // Which concrete year/month (or start/end) this periodType resolves to.
   const resolved = useMemo(() => {
@@ -125,7 +151,14 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
     };
   }, [refreshKey]);
 
-  const recurringBills = useMemo(() => detectRecurring(allTransactions), [allTransactions]);
+  const recurringBills = useMemo(() => detectRecurring(allTransactions.filter((row) => row.date <= today)),
+    [allTransactions, today]);
+  const billForecast = useMemo(() => recurringBills.filter((bill) =>
+    !(subscriptions?.[bill.key] === "CANCELLED" && bill.category === "SUBSCRIPTIONS")),
+  [recurringBills, subscriptions]);
+  const history = useMemo(() => summarizeHistory(allTransactions, today), [allTransactions, today]);
+  const monthlyCashFlow = history.observedDays >= 30
+    ? Math.round((history.recentIncome - history.recentExpenses) * 30 / history.observedDays) : null;
 
   const scenarioStart = resolved.kind === "month"
     ? toLocalDateInput(new Date(resolved.year, resolved.month - 1, 1))
@@ -183,6 +216,17 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
           </div>
         )}
       </PageHero>
+
+      {!recentLoading && allTransactions.length > 0 && <FinancialPlanning
+        rows={allTransactions}
+        bills={billForecast}
+        today={today}
+        goals={goals}
+        refreshKey={refreshKey}
+        comparison={resolved.kind === "month" && !loading && !error ? report : null}
+      />}
+
+      {planningLoadFailed && <p role="status">Saved goals or subscription reviews could not be loaded.</p>}
 
       <PeriodSelector
         periodType={periodType}
@@ -321,9 +365,20 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
               month={resolved.month}
             />
           )}
-          <RecurringBills bills={recurringBills} today={todayInput()} />
+          <RecurringBills bills={recurringBills} today={today} decisions={subscriptions}
+            onDecision={(key, status) => setSubscriptions((previous) => ({ ...previous, [key]: status }))} />
+          {resolved.kind === "month" && !recentLoading && allTransactions.length > 0 && !error &&
+            report.year === resolved.year && report.month === resolved.month && <MonthlyReportExport
+              month={scenarioStart.slice(0, 7)}
+              report={report}
+              rows={allTransactions}
+              goals={goals}
+            />}
+
         </>
       )}
+      {goals !== null && <SavingsGoals goals={goals} today={today}
+        monthlyCashFlow={monthlyCashFlow} onChange={setGoals} />}
     </div>
   );
 }
