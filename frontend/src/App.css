@@ -2420,3 +2420,105 @@
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* Scanning a receipt photo */
+.dialog--receipt {
+  width: min(900px, 100%);
+}
+
+.receipt__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.receipt__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-surface-soft);
+  overflow: hidden;
+}
+
+.receipt__bar-fill {
+  height: 100%;
+  background: var(--color-interactive);
+  transition: width 0.2s ease;
+}
+
+.receipt__review {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.receipt__preview {
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+
+.receipt__hint {
+  margin-top: 0;
+}
+
+.receipt__fields {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.receipt__fields label {
+  display: grid;
+  gap: 2px;
+}
+
+.receipt__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr) 96px 48px 32px;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.receipt__target {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.receipt__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 0;
+}
+
+.receipt__option input {
+  width: auto;
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .receipt__review {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt__preview {
+    max-height: 200px;
+  }
+
+  .receipt__fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .receipt__line {
+    grid-template-columns: 1fr 1fr;
+  }
+}

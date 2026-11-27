@@ -7,6 +7,7 @@ import { SearchIcon, ArrowUpIcon, ArrowDownIcon, EditIcon, TrashIcon, CheckCircl
 import SplitDialog from "./SplitDialog";
 import MerchantRules from "./MerchantRules";
 import RuleOffer from "./RuleOffer";
+import ReceiptScanner from "./ReceiptScanner";
 import { countOthers, isMixedStore, suggestPattern } from "../utils/merchant";
 import EmptyState from "./EmptyState";
 
@@ -66,6 +67,7 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
   const [offerError, setOfferError] = useState(null);
   const [ruleBusyId, setRuleBusyId] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -234,6 +236,16 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
     }
   }
 
+  async function handleReceiptSaved(message) {
+    setScanning(false);
+    setNotice(message);
+    try {
+      setTransactions(await listTransactions());
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function toggleSort(field) {
     if (sortBy === field) {
       setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
@@ -366,6 +378,10 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
           disabled={loading || invalidDateRange || filtered.length === 0}
         >
           Export CSV
+        </button>
+
+        <button type="button" className="btn btn--secondary" onClick={() => setScanning(true)}>
+          Scan receipt
         </button>
 
         {hasActiveFilters && (
@@ -660,6 +676,14 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
 
       {!loading && (
         <MerchantRules rules={rules} onRemove={removeRule} busyId={ruleBusyId} />
+      )}
+
+      {scanning && (
+        <ReceiptScanner
+          transactions={transactions}
+          onClose={() => setScanning(false)}
+          onSaved={handleReceiptSaved}
+        />
       )}
 
       {splitting && (

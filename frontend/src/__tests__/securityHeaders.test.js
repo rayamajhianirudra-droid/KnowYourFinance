@@ -63,6 +63,12 @@ describe("nginx.conf", () => {
     expect(headers).toContain('X-Frame-Options "DENY" always;');
     expect(headers).toContain('Referrer-Policy "no-referrer" always;');
     expect(headers).toContain('Permissions-Policy "camera=(), microphone=(), geolocation=()" always;');
-    expect(headers).toContain("script-src 'self';");
+    // Only this site's own scripts run. 'wasm-unsafe-eval' is there so the
+    // receipt reader's WebAssembly can start; it does not allow inline
+    // scripts or eval().
+    expect(headers).toContain("script-src 'self' 'wasm-unsafe-eval';");
+    expect(headers).not.toContain("'unsafe-inline'");
+    expect(headers).not.toMatch(/script-src[^;]*'unsafe-eval'/);
+    expect(headers).not.toMatch(/script-src[^;]*https?:/);
   });
 });
