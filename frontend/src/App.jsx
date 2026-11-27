@@ -170,6 +170,7 @@ function FinanceApp({ signOut, pending, error }) {
               onUploadClick={goToUpload}
               onAddClick={goToManual}
               onScanClick={() => setScanOpen(true)}
+              onSampleLoaded={handleImported}
               onViewTransactions={goToTransactions}
             />
           )}
