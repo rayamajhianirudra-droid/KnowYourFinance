@@ -8,7 +8,7 @@ import { InboxIcon, UploadIcon, PlusIcon } from "./Icons";
  * - a first-time user's screen, which otherwise be the very first
  * impression of the product being a wall of plain text.
  */
-function EmptyState({ title, message, onUploadClick, onAddClick }) {
+function EmptyState({ title, message, onUploadClick, onAddClick, extra }) {
   return (
     <div className="empty-state">
       <div className="empty-state__icon" aria-hidden="true">
@@ -32,6 +32,7 @@ function EmptyState({ title, message, onUploadClick, onAddClick }) {
           )}
         </div>
       )}
+      {extra}
     </div>
   );
 }

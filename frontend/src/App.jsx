@@ -151,6 +151,7 @@ function FinanceApp({ signOut, pending, error }) {
               refreshKey={refreshKey}
               onUploadClick={goToUpload}
               onAddClick={goToManual}
+              onSampleLoaded={handleImported}
               onViewTransactions={goToTransactions}
             />
           )}

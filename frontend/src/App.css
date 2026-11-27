@@ -2347,3 +2347,21 @@
 .spending-scenario details + details {
   margin-top: 0.75rem;
 }
+
+/* "Try with sample data" */
+.sample-data {
+  margin-top: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.empty-state .sample-data {
+  justify-items: center;
+  text-align: center;
+}
+
+.sample-data__hint {
+  margin: 0;
+  max-width: 52ch;
+}
