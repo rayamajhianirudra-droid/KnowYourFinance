@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { addTransaction } from "../api";
 import { categoryLabel } from "../utils/format";
 import { initials } from "../utils/names";
-import { IncomeIcon, ExpenseIcon, CheckCircleIcon, AlertIcon } from "./Icons";
+import { IncomeIcon, ExpenseIcon, CheckCircleIcon, AlertIcon, ReceiptIcon } from "./Icons";
 
 const CATEGORIES = [
   "GROCERIES", "DINING", "RENT_MORTGAGE", "UTILITIES", "SUBSCRIPTIONS",
@@ -23,7 +23,7 @@ const today = todayInput;
  * month" number. This hits the exact same Transaction table statement
  * uploads do - no separate "cash mode," no different math downstream.
  */
-function ManualEntry({ fullName, onAdded }) {
+function ManualEntry({ fullName, onAdded, onScanClick }) {
   const fieldId = useId();
   const [date, setDate] = useState(today());
   const [description, setDescription] = useState("");
@@ -74,7 +74,16 @@ function ManualEntry({ fullName, onAdded }) {
       <PageHero
         title="Add Transaction"
         subtitle="Paid cash, or missed something your statement wouldn't catch? Log it here and it counts toward your totals and category breakdown exactly like an imported transaction."
-      />
+      >
+        {onScanClick && (
+          <div className="page-hero__actions">
+            <button type="button" className="btn btn--secondary" onClick={onScanClick}>
+              <ReceiptIcon width={16} height={16} aria-hidden="true" />
+              Scan a receipt instead
+            </button>
+          </div>
+        )}
+      </PageHero>
 
       <form className="panel entry-form" onSubmit={handleSubmit} noValidate>
         {fullName && (

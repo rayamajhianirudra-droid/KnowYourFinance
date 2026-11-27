@@ -8,6 +8,7 @@ import ManualEntry from "./components/ManualEntry";
 import ProfileBadge from "./components/ProfileBadge";
 import ThemeToggle from "./components/ThemeToggle";
 import ResetDataDialog from "./components/ResetDataDialog";
+import ReceiptScanner from "./components/ReceiptScanner";
 import { getProfile } from "./api";
 import { DashboardIcon, UploadIcon, PlusIcon, ListIcon, LockIcon, SavingsIcon } from "./components/Icons";
 
@@ -33,6 +34,8 @@ function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [fullName, setFullName] = useState(null);
   const [resetOpen, setResetOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [flash, setFlash] = useState(null);
 
   // Load the saved name once. If it can't be loaded the app still works,
   // it just asks for the name instead of showing it.
@@ -60,6 +63,15 @@ function App() {
   function handleDataDeleted(result) {
     setRefreshKey((key) => key + 1);
     if (result.nameRemoved) setFullName(null);
+  }
+
+  // A receipt was saved from the scanner: refresh the numbers and show the
+  // person the lines it created.
+  function handleReceiptSaved(message) {
+    setScanOpen(false);
+    setRefreshKey((key) => key + 1);
+    setFlash(message);
+    setActiveTab("transactions");
   }
 
   function goToUpload() {
@@ -114,7 +126,10 @@ function App() {
                   key={tab.id}
                   type="button"
                   className={`nav-item${isActive ? " nav-item--active" : ""}`}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setFlash(null);
+                    setActiveTab(tab.id);
+                  }}
                   aria-current={isActive ? "page" : undefined}
                 >
                   <Icon width={18} height={18} aria-hidden="true" />
@@ -136,18 +151,22 @@ function App() {
 
       <main id="main" ref={mainRef} tabIndex={-1} className="site-main">
         <div className="content-container">
+          {flash && (
+            <p className="notice" role="status">{flash}</p>
+          )}
           {activeTab === "dashboard" && (
             <Dashboard
               fullName={fullName}
               refreshKey={refreshKey}
               onUploadClick={goToUpload}
               onAddClick={goToManual}
+              onScanClick={() => setScanOpen(true)}
               onViewTransactions={goToTransactions}
             />
           )}
           {activeTab === "budgets" && <Budgets refreshKey={refreshKey} />}
           {activeTab === "upload" && <UploadStatement onImported={handleImported} />}
-          {activeTab === "manual" && <ManualEntry fullName={fullName} onAdded={handleManualAdd} />}
+          {activeTab === "manual" && <ManualEntry fullName={fullName} onAdded={handleManualAdd} onScanClick={() => setScanOpen(true)} />}
           {activeTab === "transactions" && (
             <TransactionList
               refreshKey={refreshKey}
@@ -157,6 +176,10 @@ function App() {
           )}
         </div>
       </main>
+
+      {scanOpen && (
+        <ReceiptScanner onClose={() => setScanOpen(false)} onSaved={handleReceiptSaved} />
+      )}
 
       {resetOpen && (
         <ResetDataDialog

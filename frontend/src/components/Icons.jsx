@@ -228,3 +228,13 @@ export function JoinIcon(props) {
     </svg>
   );
 }
+
+export function ReceiptIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 2.5h10v15l-2-1.2-1.7 1.2-1.3-1.2-1.3 1.2L7 16.3 5 17.5z" />
+      <path d="M7.5 7h5" />
+      <path d="M7.5 10h5" />
+    </svg>
+  );
+}

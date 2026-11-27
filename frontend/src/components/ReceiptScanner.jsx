@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { addTransaction, splitTransaction, updateTransaction } from "../api";
+import { addTransaction, listTransactions, splitTransaction, updateTransaction } from "../api";
 import { readReceiptText } from "../utils/ocr";
 import { buildLines, findMatches, parseReceipt, toNumber } from "../utils/receipt";
 import { itemCategorizer } from "../utils/itemCategory";
@@ -17,7 +17,24 @@ import { PlusIcon, XIcon } from "./Icons";
  * charge from the bank statement), the items split that charge. Otherwise
  * the receipt is added as a new purchase.
  */
-function ReceiptScanner({ transactions, onClose, onSaved }) {
+function ReceiptScanner({ transactions: given, onClose, onSaved }) {
+  // The Transactions page already has the list. From other pages the
+  // scanner loads it itself, to look for the charge a receipt belongs to.
+  const [loaded, setLoaded] = useState([]);
+  const transactions = given ?? loaded;
+  useEffect(() => {
+    if (given) return undefined;
+    let cancelled = false;
+    Promise.resolve(listTransactions())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data)) setLoaded(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [given]);
+
   const [step, setStep] = useState("pick");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
