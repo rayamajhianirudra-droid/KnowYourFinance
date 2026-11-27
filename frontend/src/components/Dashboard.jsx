@@ -414,7 +414,7 @@ const SCENARIO_LIMIT = 8;
 function SpendingScenario({ transactions, start, end, expenses, savings }) {
   const [excluded, setExcluded] = useState([]);
   const candidates = useMemo(() => transactions
-    .filter((row) => row.id != null && row.type === "EXPENSE" &&
+    .filter((row) => row.id != null && row.type === "EXPENSE" && row.category !== "TRANSFER" &&
       row.date >= start && row.date <= end && Number(row.amount) > 0)
     .sort((a, b) => Number(b.amount) - Number(a.amount) || b.date.localeCompare(a.date))
     .slice(0, SCENARIO_LIMIT), [transactions, start, end]);
@@ -590,7 +590,7 @@ function SpendingCalendar({ transactions, year, month }) {
     const prefix = `${year}-${String(month).padStart(2, "0")}-`;
     const days = new Map();
     for (const row of transactions) {
-      if (row.type !== "EXPENSE" || !row.date?.startsWith(prefix) || !(Number(row.amount) > 0)) {
+      if (row.type !== "EXPENSE" || row.category === "TRANSFER" || !row.date?.startsWith(prefix) || !(Number(row.amount) > 0)) {
         continue;
       }
       const day = Number(row.date.slice(8, 10));

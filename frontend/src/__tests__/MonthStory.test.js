@@ -51,3 +51,13 @@ describe("explainMonth", () => {
     expect(isFee({ description: "STARBUCKS" })).toBe(false);
   });
 });
+
+import { detectRecurring } from "../utils/recurring";
+
+describe("transfers are not bills", () => {
+  it("does not treat a monthly move to savings as a recurring bill", () => {
+    const rows = ["2026-08-01", "2026-09-01", "2026-10-01", "2026-11-01"]
+      .map((date) => row(date, "ONLINE TRANSFER TO SAVINGS", "200.00", "TRANSFER"));
+    expect(detectRecurring(rows)).toEqual([]);
+  });
+});

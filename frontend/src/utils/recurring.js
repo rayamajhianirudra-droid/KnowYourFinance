@@ -52,7 +52,7 @@ export function daysBetween(fromText, toText) {
 export function detectRecurring(transactions) {
   const groups = new Map();
   for (const t of transactions || []) {
-    if (!t || t.type !== "EXPENSE" || !t.date) continue;
+    if (!t || t.type !== "EXPENSE" || t.category === "TRANSFER" || !t.date) continue;
     const key = normalizeDescription(t.description);
     const amount = Number(t.amount);
     if (!key || !Number.isFinite(amount) || amount <= 0) continue;
