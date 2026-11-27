@@ -131,7 +131,9 @@ function stubFetch(handler) {
     const result = handler(String(url), options);
     return { ok: result.ok ?? true, status: result.status ?? 200, json: async () => result.body };
   });
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("fetch", (url, options) => String(url).endsWith("/auth/csrf")
+    ? Promise.resolve({ ok: true, status: 200, json: async () => ({ token: "t", headerName: "X-CSRF-TOKEN" }) })
+    : fetchMock(url, options));
   return fetchMock;
 }
 

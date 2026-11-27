@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -26,7 +27,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@org.springframework.context.annotation.Import(com.kyf.knowyourfinance.auth.SecurityConfiguration.class)
 @WebMvcTest(CategoryRuleController.class)
+@AuthenticatedTestAccount
 class CategoryRuleControllerTest {
 
     @Autowired
@@ -39,7 +42,7 @@ class CategoryRuleControllerTest {
     void listsTheRulesForAUser() throws Exception {
         when(service.list(1L)).thenReturn(List.of(new CategoryRule(1L, "walmart", TransactionCategory.SHOPPING)));
 
-        mockMvc.perform(get("/api/rules").param("userId", "1"))
+        mockMvc.perform(get("/api/rules"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].pattern").value("walmart"))
                 .andExpect(jsonPath("$[0].category").value("SHOPPING"));
@@ -50,7 +53,7 @@ class CategoryRuleControllerTest {
         when(service.save(eq(1L), any(RuleRequest.class)))
                 .thenReturn(new RuleResult(new CategoryRule(1L, "starbucks", TransactionCategory.DINING), 4));
 
-        mockMvc.perform(post("/api/rules").param("userId", "1")
+        mockMvc.perform(post("/api/rules").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pattern\":\"starbucks\",\"category\":\"DINING\",\"applyToExisting\":true}"))
                 .andExpect(status().isOk())
@@ -63,7 +66,7 @@ class CategoryRuleControllerTest {
         when(service.save(eq(1L), any(RuleRequest.class)))
                 .thenThrow(new IllegalArgumentException("Choose a category."));
 
-        mockMvc.perform(post("/api/rules").param("userId", "1")
+        mockMvc.perform(post("/api/rules").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pattern\":\"walmart\"}"))
                 .andExpect(status().isBadRequest())
@@ -72,7 +75,7 @@ class CategoryRuleControllerTest {
 
     @Test
     void deletesARule() throws Exception {
-        mockMvc.perform(delete("/api/rules/9").param("userId", "1"))
+        mockMvc.perform(delete("/api/rules/9").with(csrf()))
                 .andExpect(status().isNoContent());
 
         verify(service).delete(1L, 9L);
@@ -82,13 +85,7 @@ class CategoryRuleControllerTest {
     void deletingAMissingRuleReturns404() throws Exception {
         doThrow(new NoSuchElementException("Rule not found.")).when(service).delete(1L, 9L);
 
-        mockMvc.perform(delete("/api/rules/9").param("userId", "1"))
+        mockMvc.perform(delete("/api/rules/9").with(csrf()))
                 .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void anInvalidUserReturns400() throws Exception {
-        mockMvc.perform(get("/api/rules").param("userId", "0"))
-                .andExpect(status().isBadRequest());
     }
 }

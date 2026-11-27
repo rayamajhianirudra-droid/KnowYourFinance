@@ -19,6 +19,7 @@ import java.util.Optional;
 import com.kyf.knowyourfinance.dto.SplitRequest;
 import java.util.NoSuchElementException;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -41,7 +42,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * not just that the handler class compiles, but that Spring really
  * wires it in front of a real validation failure.
  */
+@org.springframework.context.annotation.Import(com.kyf.knowyourfinance.auth.SecurityConfiguration.class)
 @WebMvcTest(TransactionController.class)
+@AuthenticatedTestAccount
 class TransactionControllerTest {
 
     @Autowired
@@ -60,7 +63,7 @@ class TransactionControllerTest {
                 TransactionType.EXPENSE, null, 1L);
         when(transactionRepository.save(any())).thenReturn(saved);
 
-        mockMvc.perform(post("/api/transactions")
+        mockMvc.perform(post("/api/transactions").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -81,7 +84,7 @@ class TransactionControllerTest {
         // reject this before it ever reaches the repository, and
         // GlobalExceptionHandler should turn that rejection into the
         // documented fieldErrors JSON shape instead of a raw stack trace.
-        mockMvc.perform(post("/api/transactions")
+        mockMvc.perform(post("/api/transactions").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -98,7 +101,7 @@ class TransactionControllerTest {
 
     @Test
     void getByIdReturns404WhenNotFound() throws Exception {
-        when(transactionRepository.findById(99L)).thenReturn(Optional.empty());
+        when(transactionRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/transactions/99"))
                 .andExpect(status().isNotFound());
@@ -111,10 +114,10 @@ class TransactionControllerTest {
         Transaction existing = new Transaction(
                 LocalDate.of(2026, 9, 2), "XZQ MERCHANT 991", new BigDecimal("12.00"),
                 TransactionType.EXPENSE, null, 1L);
-        when(transactionRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(transactionRepository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(existing));
         when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        mockMvc.perform(put("/api/transactions/5")
+        mockMvc.perform(put("/api/transactions/5").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -140,10 +143,10 @@ class TransactionControllerTest {
                 LocalDate.of(2026, 9, 2), "XZQ MERCHANT 991", new BigDecimal("12.00"),
                 TransactionType.EXPENSE, null, 1L);
         existing.setLowConfidence(true);
-        when(transactionRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(transactionRepository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(existing));
         when(transactionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        mockMvc.perform(put("/api/transactions/5")
+        mockMvc.perform(put("/api/transactions/5").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -161,9 +164,9 @@ class TransactionControllerTest {
 
     @Test
     void updatingAMissingTransactionReturns404() throws Exception {
-        when(transactionRepository.findById(404L)).thenReturn(Optional.empty());
+        when(transactionRepository.findByIdAndUserId(404L, 1L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/transactions/404")
+        mockMvc.perform(put("/api/transactions/404").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -193,7 +196,7 @@ class TransactionControllerTest {
                 TransactionType.INCOME, null, 1L);
         when(transactionRepository.findByUserId(1L)).thenReturn(List.of(t));
 
-        mockMvc.perform(get("/api/transactions").param("userId", "1"))
+        mockMvc.perform(get("/api/transactions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].description").value("PAYROLL DEPOSIT"));
     }
@@ -208,7 +211,7 @@ class TransactionControllerTest {
                 .thenReturn(List.of(t));
 
         mockMvc.perform(get("/api/transactions")
-                        .param("userId", "1")
+
                         .param("start", "2026-09-01")
                         .param("end", "2026-09-30"))
                 .andExpect(status().isOk())
@@ -220,10 +223,10 @@ class TransactionControllerTest {
         Transaction food = new Transaction(LocalDate.of(2026, 9, 3), "WALMART - Food",
                 new BigDecimal("80.00"), TransactionType.EXPENSE,
                 com.kyf.knowyourfinance.model.TransactionCategory.GROCERIES, 1L);
-        when(splitService.split(org.mockito.ArgumentMatchers.eq(5L), any(SplitRequest.class)))
+        when(splitService.split(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq(5L), any(SplitRequest.class)))
                 .thenReturn(List.of(food));
 
-        mockMvc.perform(post("/api/transactions/5/split")
+        mockMvc.perform(post("/api/transactions/5/split").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"parts\":[{\"amount\":80,\"category\":\"GROCERIES\",\"label\":\"Food\"},"
                                 + "{\"amount\":120,\"category\":\"SHOPPING\",\"label\":\"TV\"}]}"))
@@ -233,10 +236,10 @@ class TransactionControllerTest {
 
     @Test
     void aBadSplitReturns400WithTheReason() throws Exception {
-        when(splitService.split(org.mockito.ArgumentMatchers.eq(5L), any(SplitRequest.class)))
+        when(splitService.split(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq(5L), any(SplitRequest.class)))
                 .thenThrow(new IllegalArgumentException("The lines add up to 180 but the receipt total is 200."));
 
-        mockMvc.perform(post("/api/transactions/5/split")
+        mockMvc.perform(post("/api/transactions/5/split").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"parts\":[]}"))
                 .andExpect(status().isBadRequest())
@@ -245,10 +248,10 @@ class TransactionControllerTest {
 
     @Test
     void splittingAMissingTransactionReturns404() throws Exception {
-        when(splitService.split(org.mockito.ArgumentMatchers.eq(404L), any(SplitRequest.class)))
+        when(splitService.split(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq(404L), any(SplitRequest.class)))
                 .thenThrow(new NoSuchElementException("Transaction not found."));
 
-        mockMvc.perform(post("/api/transactions/404/split")
+        mockMvc.perform(post("/api/transactions/404/split").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"parts\":[]}"))
                 .andExpect(status().isNotFound());
@@ -259,9 +262,9 @@ class TransactionControllerTest {
         Transaction joined = new Transaction(LocalDate.of(2026, 9, 3), "WALMART",
                 new BigDecimal("200.00"), TransactionType.EXPENSE,
                 com.kyf.knowyourfinance.model.TransactionCategory.SHOPPING, 1L);
-        when(splitService.join(5L)).thenReturn(joined);
+        when(splitService.join(1L, 5L)).thenReturn(joined);
 
-        mockMvc.perform(delete("/api/transactions/5/split"))
+        mockMvc.perform(delete("/api/transactions/5/split").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.description").value("WALMART"));
     }

@@ -119,51 +119,82 @@ jobs:
           docker compose up --build -d --wait --wait-timeout 300
       - name: Health check through the web address
         run: curl -fsS http://localhost:3000/api/health
+      - name: Create a synthetic account for the smoke test
+        run: |
+          jar="$RUNNER_TEMP/kyf-cookies"
+          password=$(openssl rand -hex 24)
+          csrf=$(curl -fsS -c "$jar" http://localhost:3000/api/auth/csrf | jq -er .token)
+          curl -fsS -b "$jar" -c "$jar" -H "X-CSRF-TOKEN: $csrf" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg pw "$password" '{email:"smoke@example.test",password:$pw}')" \
+            http://localhost:3000/api/auth/signup
+          curl -fsS -b "$jar" http://localhost:3000/api/auth/session | grep -q 'smoke@example.test'
+          printf '%s' "$password" > "$RUNNER_TEMP/kyf-smoke-password"
       - name: Save a transaction and read it back
         run: |
-          curl -fsS -X POST http://localhost:3000/api/transactions \
+          jar="$RUNNER_TEMP/kyf-cookies"
+          csrf=$(curl -fsS -b "$jar" http://localhost:3000/api/auth/csrf | jq -er .token)
+          curl -fsS -b "$jar" -H "X-CSRF-TOKEN: $csrf" -X POST http://localhost:3000/api/transactions \
             -H "Content-Type: application/json" \
-            -d '{"userId":1,"date":"2026-11-01","description":"Smoke test coffee","amount":4.5,"type":"EXPENSE"}'
-          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "Smoke test coffee"
+            -d '{"date":"2026-11-01","description":"Smoke test coffee","amount":4.5,"type":"EXPENSE"}'
+          curl -fsS -b "$jar" "http://localhost:3000/api/transactions" | grep -q "Smoke test coffee"
       - name: Invalid input is rejected with a message
         run: |
-          code=$(curl -s -o /tmp/err.json -w "%{http_code}" -X POST http://localhost:3000/api/transactions \
-            -H "Content-Type: application/json" -d '{"userId":1}')
+          jar="$RUNNER_TEMP/kyf-cookies"
+          csrf=$(curl -fsS -b "$jar" http://localhost:3000/api/auth/csrf | jq -er .token)
+          code=$(curl -s -o /tmp/err.json -w "%{http_code}" -b "$jar" -H "X-CSRF-TOKEN: $csrf" -X POST http://localhost:3000/api/transactions \
+            -H "Content-Type: application/json" -d '{}')
           test "$code" = "400"
       - name: Requests that carry a browser Origin header are accepted
         run: |
+          jar="$RUNNER_TEMP/kyf-cookies"
+          csrf=$(curl -fsS -b "$jar" http://localhost:3000/api/auth/csrf | jq -er .token)
           # A real browser adds this header. curl does not, which is why a
           # plain curl check once missed a 403 on every upload and form post.
-          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/transactions \
+          code=$(curl -s -o /dev/null -w "%{http_code}" -b "$jar" -H "X-CSRF-TOKEN: $csrf" -X POST http://localhost:3000/api/transactions \
             -H "Origin: http://localhost:3000" -H "Content-Type: application/json" \
-            -d '{"userId":1,"date":"2026-11-02","description":"Origin header check","amount":1,"type":"EXPENSE"}')
+            -d '{"date":"2026-11-02","description":"Origin header check","amount":1,"type":"EXPENSE"}')
           test "$code" = "200"
           printf 'Date,Description,Amount\n2026-01-06,ORIGIN UPLOAD CHECK,-2.00\n' > origin.csv
-          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:3000/api/statements/upload-batch?userId=1" \
+          code=$(curl -s -o /dev/null -w "%{http_code}" -b "$jar" -H "X-CSRF-TOKEN: $csrf" -X POST "http://localhost:3000/api/statements/upload-batch" \
             -H "Origin: http://localhost:3000" -F "files=@origin.csv")
           test "$code" = "200"
       - name: Upload several statements at once, in different formats
         run: |
+          jar="$RUNNER_TEMP/kyf-cookies"
+          csrf=$(curl -fsS -b "$jar" http://localhost:3000/api/auth/csrf | jq -er .token)
           printf 'Date,Description,Amount\n2026-01-05,JAN COFFEE SHOP,-4.50\n' > jan.csv
           printf 'Date\tDescription\tAmount\n02/06/2026\tFEB BOOKSTORE\t($12.00)\n' > feb.tsv
-          curl -fsS -X POST "http://localhost:3000/api/statements/upload-batch?userId=1" \
+          curl -fsS -b "$jar" -H "X-CSRF-TOKEN: $csrf" -X POST "http://localhost:3000/api/statements/upload-batch" \
             -F "files=@jan.csv" -F "files=@feb.tsv" | tee batch.json
           grep -q '"filesSucceeded":2' batch.json
-          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "FEB BOOKSTORE"
+          curl -fsS -b "$jar" "http://localhost:3000/api/transactions" | grep -q "FEB BOOKSTORE"
       - name: A thirteenth file is refused
         run: |
+          jar="$RUNNER_TEMP/kyf-cookies"
+          csrf=$(curl -fsS -b "$jar" http://localhost:3000/api/auth/csrf | jq -er .token)
           args=""
           for i in $(seq 1 13); do printf 'Date,Description,Amount\n' > "m$i.csv"; args="$args -F files=@m$i.csv"; done
-          code=$(curl -s -o /tmp/too-many.json -w "%{http_code}" -X POST \
-            "http://localhost:3000/api/statements/upload-batch?userId=1" $args)
+          code=$(curl -s -o /tmp/too-many.json -w "%{http_code}" -b "$jar" -H "X-CSRF-TOKEN: $csrf" -X POST \
+            "http://localhost:3000/api/statements/upload-batch" $args)
           test "$code" = "400"
           grep -q "at most 12 files" /tmp/too-many.json
       - name: Data survives stop and start
         run: |
           docker compose down
           docker compose up -d --wait --wait-timeout 300
-          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "Smoke test coffee"
-          curl -fsS "http://localhost:3000/api/transactions?userId=1" | grep -q "FEB BOOKSTORE"
+          jar="$RUNNER_TEMP/kyf-cookies"
+          csrf=$(curl -fsS -c "$jar" http://localhost:3000/api/auth/csrf | jq -er .token)
+          password=$(cat "$RUNNER_TEMP/kyf-smoke-password")
+          curl -fsS -b "$jar" -c "$jar" -H "X-CSRF-TOKEN: $csrf" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg pw "$password" '{email:"smoke@example.test",password:$pw}')" \
+            http://localhost:3000/api/auth/signin
+          rm "$RUNNER_TEMP/kyf-smoke-password"
+          curl -fsS -b "$jar" "http://localhost:3000/api/transactions" | grep -q "Smoke test coffee"
+          curl -fsS -b "$jar" "http://localhost:3000/api/transactions" | grep -q "FEB BOOKSTORE"
+      - name: Verify financial planning in a mobile browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/kyf-browser" --no-audit --no-fund playwright@1.58.2
+          NODE_PATH="$RUNNER_TEMP/kyf-browser/node_modules" node frontend/tests/financial-planning-smoke.cjs
       - name: Show logs if something failed
         if: failure()
         run: docker compose logs --tail=100

@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,7 +21,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@org.springframework.context.annotation.Import(com.kyf.knowyourfinance.auth.SecurityConfiguration.class)
 @WebMvcTest(ProfileController.class)
+@AuthenticatedTestAccount
 class ProfileControllerTest {
 
     @Autowired
@@ -33,7 +36,7 @@ class ProfileControllerTest {
     void returnsAnEmptyNameBeforeOneIsSaved() throws Exception {
         when(repository.findById(1L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/profile").param("userId", "1"))
+        mockMvc.perform(get("/api/profile"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").doesNotExist());
     }
@@ -42,7 +45,7 @@ class ProfileControllerTest {
     void returnsTheSavedName() throws Exception {
         when(repository.findById(1L)).thenReturn(Optional.of(new UserProfile(1L, "Ada Lovelace")));
 
-        mockMvc.perform(get("/api/profile").param("userId", "1"))
+        mockMvc.perform(get("/api/profile"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Ada Lovelace"));
     }
@@ -52,7 +55,7 @@ class ProfileControllerTest {
         when(repository.findById(1L)).thenReturn(Optional.empty());
         when(repository.save(any(UserProfile.class))).thenAnswer(call -> call.getArgument(0));
 
-        mockMvc.perform(put("/api/profile").param("userId", "1")
+        mockMvc.perform(put("/api/profile").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"fullName\": \"  Ada    Lovelace \"}"))
                 .andExpect(status().isOk())
@@ -61,7 +64,7 @@ class ProfileControllerTest {
 
     @Test
     void rejectsABlankName() throws Exception {
-        mockMvc.perform(put("/api/profile").param("userId", "1")
+        mockMvc.perform(put("/api/profile").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"fullName\": \"   \"}"))
                 .andExpect(status().isBadRequest())

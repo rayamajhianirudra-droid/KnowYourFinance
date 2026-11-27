@@ -29,44 +29,50 @@ afterEach(() => {
 });
 
 describe("app navigation", () => {
-  it("offers all five views by name, so screen readers and phone tab bars can use them", () => {
+  it("offers all five views by name, so screen readers and phone tab bars can use them", async () => {
     render(<App />);
+    await screen.findByRole("navigation", { name: "Main" });
     const nav = screen.getByRole("navigation", { name: "Main" });
     for (const name of ["Dashboard", "Upload Statements", "Add Transaction", "Transactions", "Budgets"]) {
       expect(within(nav).getByRole("button", { name })).toBeTruthy();
     }
   });
 
-  it("starts on the Dashboard and marks it as the current page", () => {
+  it("starts on the Dashboard and marks it as the current page", async () => {
     render(<App />);
+    await screen.findByRole("navigation", { name: "Main" });
     expect(screen.getByRole("button", { name: "Dashboard" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("heading", { level: 1, name: "Dashboard" })).toBeTruthy();
   });
 
-  it("switches views and moves the current page marker", () => {
+  it("switches views and moves the current page marker", async () => {
     render(<App />);
+    await screen.findByRole("navigation", { name: "Main" });
     fireEvent.click(screen.getByRole("button", { name: "Upload Statements" }));
     expect(screen.getByRole("heading", { level: 1, name: "Upload Statements" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Upload Statements" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("button", { name: "Dashboard" }).getAttribute("aria-current")).toBeNull();
   });
 
-  it("scrolls to the top and focuses the page when the view changes", () => {
+  it("scrolls to the top and focuses the page when the view changes", async () => {
     render(<App />);
+    await screen.findByRole("navigation", { name: "Main" });
     fireEvent.click(screen.getByRole("button", { name: "Transactions" }));
     expect(window.scrollTo).toHaveBeenCalled();
     expect(document.activeElement).toBe(document.getElementById("main"));
   });
 
-  it("has a skip link that jumps to the main content", () => {
+  it("has a skip link that jumps to the main content", async () => {
     render(<App />);
+    await screen.findByRole("navigation", { name: "Main" });
     expect(screen.getByRole("link", { name: "Skip to content" }).getAttribute("href")).toBe("#main");
   });
 });
 
 describe("upload page", () => {
-  it("explains what is accepted and what is removed before anything is uploaded", () => {
+  it("explains what is accepted and what is removed before anything is uploaded", async () => {
     render(<App />);
+    await screen.findByRole("navigation", { name: "Main" });
     fireEvent.click(screen.getByRole("button", { name: "Upload Statements" }));
     expect(screen.getByText("What to upload")).toBeTruthy();
     expect(screen.getByText("What we remove")).toBeTruthy();
@@ -100,6 +106,7 @@ describe("profile name", () => {
 
   it("invites the person to add a name when none is saved", async () => {
     render(<App />);
+    await screen.findByRole("navigation", { name: "Main" });
 
     expect(await screen.findByRole("button", { name: "Add your name" })).toBeTruthy();
   });

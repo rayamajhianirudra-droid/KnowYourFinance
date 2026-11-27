@@ -1,23 +1,45 @@
-// A thin wrapper around fetch() for talking to the Spring Boot backend.
-// Keeping every API call in one file means: (1) the base URL only
-// lives in one place, (2) every component imports plain async
-// functions instead of repeating fetch() boilerplate, and (3) when
-// real authentication arrives, the "attach the logged-in user's
-// token" logic only has to be added here, not in every component.
+const API_BASE = "/api";
 
-// Where the backend lives. By default we call the relative address /api,
-// which works in both setups we use: the Vite dev server forwards /api
-// to the backend on port 8080 (see vite.config.js), and in Docker the
-// web server forwards /api to the backend container (see nginx.conf).
-// To point at a backend somewhere else, set VITE_API_BASE_URL when
-// building, for example https://api.example.com/api.
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+async function apiFetch(url, options = {}, { notifyExpiry = true } = {}) {
+  const headers = new Headers(options.headers);
+  if (options.method && options.method !== "GET") {
+    const response = await fetch(`${API_BASE}/auth/csrf`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not secure this request. Try again.");
+    const { token, headerName } = await response.json();
+    headers.set(headerName, token);
+  }
+  const response = await fetch(url, { ...options, headers, cache: "no-store" });
+  if (notifyExpiry && response.status === 401) {
+    window.dispatchEvent(new Event("kyf-session-expired"));
+  }
+  return response;
+}
 
-// TEMPORARY: there's no login yet (a deliberate decision - see
-// backend build-log 01), so every request pretends to be "user 1".
-// Once real accounts exist, this constant goes away and the signed-in
-// user's id is used instead.
-export const CURRENT_USER_ID = 1;
+export async function getAccountSession() {
+  const response = await apiFetch(`${API_BASE}/auth/session`, {}, { notifyExpiry: false });
+  if (response.status === 401) return null;
+  if (!response.ok) throw new Error("Could not check your session.");
+  return response.json();
+}
+
+export async function accountCredentials(creating, email, password) {
+  const action = creating ? "signup" : "signin";
+  const response = await apiFetch(`${API_BASE}/auth/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  }, { notifyExpiry: false });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message || "Could not complete the request. Try again.");
+  }
+  return response.json();
+}
+
+export async function signOutAccount() {
+  const response = await apiFetch(`${API_BASE}/auth/signout`, { method: "POST" });
+  if (!response.ok && response.status !== 401) throw new Error("Could not sign out. Try again.");
+}
 
 /**
  * Uploads a statement CSV file. Returns the backend's
@@ -28,8 +50,8 @@ export async function uploadStatement(file, { preview = false } = {}) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(
-    `${API_BASE}/statements/upload?userId=${CURRENT_USER_ID}&preview=${preview}`,
+  const response = await apiFetch(
+    `${API_BASE}/statements/upload?preview=${preview}`,
     {
       method: "POST",
       body: formData,
@@ -63,8 +85,8 @@ export async function uploadStatements(files, { preview = false } = {}) {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
 
-  const response = await fetch(
-    `${API_BASE}/statements/upload-batch?userId=${CURRENT_USER_ID}&preview=${preview}`,
+  const response = await apiFetch(
+    `${API_BASE}/statements/upload-batch?preview=${preview}`,
     {
       method: "POST",
       body: formData,
@@ -83,8 +105,8 @@ export async function uploadStatements(files, { preview = false } = {}) {
  * differentiator feature.
  */
 export async function getMonthlyReport(year, month) {
-  const response = await fetch(
-    `${API_BASE}/dashboard/report?userId=${CURRENT_USER_ID}&year=${year}&month=${month}`
+  const response = await apiFetch(
+    `${API_BASE}/dashboard/report?year=${year}&month=${month}`
   );
   if (!response.ok) {
     throw new Error(`Failed to load report (${response.status})`);
@@ -98,8 +120,8 @@ export async function getMonthlyReport(year, month) {
  * option. start/end are "YYYY-MM-DD" strings.
  */
 export async function getReportRange(start, end) {
-  const response = await fetch(
-    `${API_BASE}/dashboard/report-range?userId=${CURRENT_USER_ID}&start=${start}&end=${end}`
+  const response = await apiFetch(
+    `${API_BASE}/dashboard/report-range?start=${start}&end=${end}`
   );
   if (!response.ok) {
     throw new Error(`Failed to load report (${response.status})`);
@@ -113,8 +135,8 @@ export async function getReportRange(start, end) {
  * backend if not passed.
  */
 export async function getTrends(year, month, monthsBack = 6) {
-  const response = await fetch(
-    `${API_BASE}/dashboard/trends?userId=${CURRENT_USER_ID}&year=${year}&month=${month}&monthsBack=${monthsBack}`
+  const response = await apiFetch(
+    `${API_BASE}/dashboard/trends?year=${year}&month=${month}&monthsBack=${monthsBack}`
   );
   if (!response.ok) {
     throw new Error(`Failed to load trends (${response.status})`);
@@ -129,7 +151,7 @@ export async function getTrends(year, month, monthsBack = 6) {
  * dashboard and category breakdown identically.
  */
 export async function addTransaction({ date, description, amount, type, category }) {
-  const response = await fetch(`${API_BASE}/transactions`, {
+  const response = await apiFetch(`${API_BASE}/transactions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -138,7 +160,6 @@ export async function addTransaction({ date, description, amount, type, category
       amount,
       type,
       category,
-      userId: CURRENT_USER_ID,
     }),
   });
   if (!response.ok) {
@@ -161,10 +182,10 @@ export async function addTransaction({ date, description, amount, type, category
  * and re-adding the row.
  */
 export async function updateTransaction(id, transaction) {
-  const response = await fetch(`${API_BASE}/transactions/${id}`, {
+  const response = await apiFetch(`${API_BASE}/transactions/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...transaction, userId: CURRENT_USER_ID }),
+    body: JSON.stringify(transaction),
   });
   if (!response.ok) {
     // Same reasoning as addTransaction: surface which field was invalid
@@ -182,7 +203,7 @@ export async function updateTransaction(id, transaction) {
  * import or removes something added by mistake.
  */
 export async function deleteTransaction(id) {
-  const response = await fetch(`${API_BASE}/transactions/${id}`, {
+  const response = await apiFetch(`${API_BASE}/transactions/${id}`, {
     method: "DELETE",
   });
   if (!response.ok) {
@@ -196,7 +217,7 @@ export async function deleteTransaction(id) {
  * amounts have to add up to the original total. Resolves to the new lines.
  */
 export async function splitTransaction(id, parts) {
-  const response = await fetch(`${API_BASE}/transactions/${id}/split`, {
+  const response = await apiFetch(`${API_BASE}/transactions/${id}/split`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ parts }),
@@ -210,7 +231,7 @@ export async function splitTransaction(id, parts) {
 
 /** Puts a split receipt back together as one transaction. */
 export async function joinSplit(id) {
-  const response = await fetch(`${API_BASE}/transactions/${id}/split`, {
+  const response = await apiFetch(`${API_BASE}/transactions/${id}/split`, {
     method: "DELETE",
   });
   if (!response.ok) {
@@ -225,8 +246,8 @@ export async function joinSplit(id) {
  * left to the backend/display layer (the API itself doesn't sort).
  */
 export async function listTransactions() {
-  const response = await fetch(
-    `${API_BASE}/transactions?userId=${CURRENT_USER_ID}`
+  const response = await apiFetch(
+    `${API_BASE}/transactions`
   );
   if (!response.ok) {
     throw new Error(`Failed to load transactions (${response.status})`);
@@ -239,7 +260,7 @@ export async function listTransactions() {
  * until the person saves one.
  */
 export async function getProfile() {
-  const response = await fetch(`${API_BASE}/profile?userId=${CURRENT_USER_ID}`);
+  const response = await apiFetch(`${API_BASE}/profile`);
   if (!response.ok) {
     throw new Error(`Failed to load profile (${response.status})`);
   }
@@ -251,7 +272,7 @@ export async function getProfile() {
  * example "Enter your full name.", so the form can show it.
  */
 export async function saveProfile(fullName) {
-  const response = await fetch(`${API_BASE}/profile?userId=${CURRENT_USER_ID}`, {
+  const response = await apiFetch(`${API_BASE}/profile`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fullName }),
@@ -266,7 +287,7 @@ export async function saveProfile(fullName) {
 // Budget limits are scoped to the same current user as transactions.
 function budgetUrl(month, category) {
   const [year, monthNumber] = month.split("-").map(Number);
-  return `${API_BASE}/budgets${category ? `/${encodeURIComponent(category)}` : ""}?userId=${CURRENT_USER_ID}&year=${year}&month=${monthNumber}`;
+  return `${API_BASE}/budgets${category ? `/${encodeURIComponent(category)}` : ""}?year=${year}&month=${monthNumber}`;
 }
 async function budgetResponse(response) {
   if (!response.ok) {
@@ -276,15 +297,15 @@ async function budgetResponse(response) {
   return response.status === 204 ? null : response.json();
 }
 export async function getBudgets(month) {
-  return budgetResponse(await fetch(budgetUrl(month)));
+  return budgetResponse(await apiFetch(budgetUrl(month)));
 }
 export async function saveBudget(month, category, limitAmount) {
-  return budgetResponse(await fetch(budgetUrl(month, category), {
+  return budgetResponse(await apiFetch(budgetUrl(month, category), {
     method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limitAmount }),
   }));
 }
 export async function removeBudget(month, category) {
-  return budgetResponse(await fetch(budgetUrl(month, category), { method: "DELETE" }));
+  return budgetResponse(await apiFetch(budgetUrl(month, category), { method: "DELETE" }));
 }
 
 /**
@@ -292,7 +313,7 @@ export async function removeBudget(month, category) {
  * it is about to remove. Resolves to { transactions, budgets }.
  */
 export async function getDataSummary() {
-  const response = await fetch(`${API_BASE}/data/summary?userId=${CURRENT_USER_ID}`);
+  const response = await apiFetch(`${API_BASE}/data/summary`);
   if (!response.ok) {
     throw new Error(`Failed to load your data summary (${response.status})`);
   }
@@ -306,8 +327,8 @@ export async function getDataSummary() {
  * { deletedTransactions, deletedBudgets, nameRemoved }.
  */
 export async function resetData({ includeName = false } = {}) {
-  const response = await fetch(
-    `${API_BASE}/data?userId=${CURRENT_USER_ID}&confirm=DELETE&includeName=${includeName}`,
+  const response = await apiFetch(
+    `${API_BASE}/data?confirm=DELETE&includeName=${includeName}`,
     { method: "DELETE" }
   );
   if (!response.ok) {
@@ -323,9 +344,27 @@ export async function resetData({ includeName = false } = {}) {
   return response.json();
 }
 
+async function planningRequest(path, method = "GET", data) {
+  const response = await apiFetch(`${API_BASE}/planning/${path}`, {
+    method,
+    ...(data && { headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }),
+  });
+  if (!response.ok) throw new Error("Could not complete the planning request.");
+  if (response.status !== 204) return response.json();
+}
+
+export const listGoals = () => planningRequest("goals");
+export const saveGoal = (goal, id) => id
+  ? planningRequest(`goals/${encodeURIComponent(id)}`, "PUT", goal)
+  : planningRequest("goals", "POST", goal);
+export const removeGoal = (id) => planningRequest(`goals/${encodeURIComponent(id)}`, "DELETE");
+export const listSubscriptionDecisions = () => planningRequest("subscriptions");
+export const saveSubscriptionDecision = (merchantKey, status) =>
+  planningRequest("subscriptions", "PUT", { merchantKey, status });
+
 /** Lists the "always put this merchant in that category" rules. */
 export async function listRules() {
-  const response = await fetch(`${API_BASE}/rules?userId=${CURRENT_USER_ID}`);
+  const response = await apiFetch(`${API_BASE}/rules`);
   if (!response.ok) {
     throw new Error(`Failed to load rules (${response.status})`);
   }
@@ -337,7 +376,7 @@ export async function listRules() {
  * transactions already stored. Resolves to { rule, updated }.
  */
 export async function saveRule({ pattern, category, applyToExisting }) {
-  const response = await fetch(`${API_BASE}/rules?userId=${CURRENT_USER_ID}`, {
+  const response = await apiFetch(`${API_BASE}/rules`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pattern, category, applyToExisting: Boolean(applyToExisting) }),
@@ -350,7 +389,7 @@ export async function saveRule({ pattern, category, applyToExisting }) {
 }
 
 export async function deleteRule(id) {
-  const response = await fetch(`${API_BASE}/rules/${id}?userId=${CURRENT_USER_ID}`, {
+  const response = await apiFetch(`${API_BASE}/rules/${id}`, {
     method: "DELETE",
   });
   if (!response.ok) {

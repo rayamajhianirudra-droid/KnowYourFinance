@@ -34,8 +34,8 @@ public class SplitService {
     }
 
     @Transactional
-    public List<Transaction> split(Long id, SplitRequest request) {
-        Transaction original = repository.findById(id)
+    public List<Transaction> split(Long userId, Long id, SplitRequest request) {
+        Transaction original = repository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new NoSuchElementException("Transaction not found."));
         if (original.getSplitGroup() != null) {
             throw new IllegalArgumentException("This receipt is already split. Join it back first.");
@@ -84,8 +84,8 @@ public class SplitService {
 
     /** Puts a split receipt back into one transaction. Returns the joined row. */
     @Transactional
-    public Transaction join(Long id) {
-        Transaction any = repository.findById(id)
+    public Transaction join(Long userId, Long id) {
+        Transaction any = repository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new NoSuchElementException("Transaction not found."));
         if (any.getSplitGroup() == null) {
             throw new IllegalArgumentException("This transaction is not split.");

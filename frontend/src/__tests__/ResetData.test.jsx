@@ -12,6 +12,7 @@ afterEach(() => {
 
 function stubFetch(handler) {
   const fetchMock = vi.fn(async (url, options = {}) => {
+    if (url === "/api/auth/csrf") return { ok: true, json: async () => ({ headerName: "X-CSRF-TOKEN", token: "mock-token" }) };
     const result = handler(String(url), options);
     return {
       ok: result.ok ?? true,
@@ -27,14 +28,14 @@ describe("reset data api", () => {
   it("asks for the summary of the current user", async () => {
     const fetchMock = stubFetch(() => ({ body: { transactions: 4, budgets: 2 } }));
     expect(await getDataSummary()).toEqual({ transactions: 4, budgets: 2 });
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/data/summary?userId=1");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/data/summary");
   });
 
   it("sends the confirm word with a DELETE request", async () => {
     const fetchMock = stubFetch(() => ({ body: { deletedTransactions: 4, deletedBudgets: 2, nameRemoved: false } }));
     await resetData();
-    const [url, options] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/data?userId=1&confirm=DELETE&includeName=false");
+    const [url, options] = fetchMock.mock.calls.at(-1);
+    expect(url).toBe("/api/data?confirm=DELETE&includeName=false");
     expect(options.method).toBe("DELETE");
   });
 

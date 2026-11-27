@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The Docker health check and the deployment pipeline both call this
  * endpoint, so it must keep answering with a 200 and "ok".
  */
+@org.springframework.context.annotation.Import(com.kyf.knowyourfinance.auth.SecurityConfiguration.class)
 @WebMvcTest(HealthController.class)
 class HealthControllerTest {
 

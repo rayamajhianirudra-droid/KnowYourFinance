@@ -15,7 +15,9 @@ function stubFetch(handler) {
     const result = handler(String(url), options);
     return { ok: result.ok ?? true, status: result.status ?? 200, json: async () => result.body };
   });
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("fetch", (url, options) => String(url).endsWith("/auth/csrf")
+    ? Promise.resolve({ ok: true, status: 200, json: async () => ({ token: "t", headerName: "X-CSRF-TOKEN" }) })
+    : fetchMock(url, options));
   return fetchMock;
 }
 
@@ -59,17 +61,17 @@ describe("rules api", () => {
     });
 
     expect(await listRules()).toHaveLength(1);
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/rules?userId=1");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/rules");
 
     const saved = await saveRule({ pattern: "walmart", category: "SHOPPING", applyToExisting: true });
     expect(saved.updated).toBe(2);
-    expect(fetchMock.mock.calls[1][0]).toBe("/api/rules?userId=1");
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/rules");
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
       pattern: "walmart", category: "SHOPPING", applyToExisting: true,
     });
 
     await deleteRule(3);
-    expect(fetchMock.mock.calls[2][0]).toBe("/api/rules/3?userId=1");
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/rules/3");
     expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
   });
 

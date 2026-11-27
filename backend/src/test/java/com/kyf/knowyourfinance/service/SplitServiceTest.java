@@ -39,7 +39,7 @@ class SplitServiceTest {
         walmart = new Transaction(LocalDate.of(2026, 9, 3), "WALMART SUPERCENTER",
                 new BigDecimal("200.00"), TransactionType.EXPENSE, TransactionCategory.GROCERIES, 1L);
         ReflectionTestUtils.setField(walmart, "id", 5L);
-        when(repository.findById(5L)).thenReturn(Optional.of(walmart));
+        when(repository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(walmart));
         when(repository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(repository.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -52,7 +52,7 @@ class SplitServiceTest {
 
     @Test
     void splitsOneReceiptIntoLinesThatKeepTheTotal() {
-        List<Transaction> parts = service.split(5L, twoLines());
+        List<Transaction> parts = service.split(1L, 5L, twoLines());
 
         assertEquals(2, parts.size());
         assertEquals(new BigDecimal("80.00"), parts.get(0).getAmount());
@@ -71,7 +71,7 @@ class SplitServiceTest {
 
     @Test
     void aLineWithoutALabelKeepsTheOriginalDescription() {
-        List<Transaction> parts = service.split(5L, new SplitRequest(List.of(
+        List<Transaction> parts = service.split(1L, 5L, new SplitRequest(List.of(
                 new Part(new BigDecimal("80.00"), TransactionCategory.GROCERIES, null),
                 new Part(new BigDecimal("120.00"), TransactionCategory.SHOPPING, "  "))));
 
@@ -85,7 +85,7 @@ class SplitServiceTest {
                 new Part(new BigDecimal("80.00"), TransactionCategory.GROCERIES, "Food"),
                 new Part(new BigDecimal("100.00"), TransactionCategory.SHOPPING, "TV")));
 
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> service.split(5L, off));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, off));
         assertTrue(e.getMessage().contains("180"));
         assertTrue(e.getMessage().contains("200"));
         verify(repository, never()).saveAll(any());
@@ -93,7 +93,7 @@ class SplitServiceTest {
 
     @Test
     void anAmountWithDifferentTrailingZerosStillMatchesTheTotal() {
-        List<Transaction> parts = service.split(5L, new SplitRequest(List.of(
+        List<Transaction> parts = service.split(1L, 5L, new SplitRequest(List.of(
                 new Part(new BigDecimal("80"), TransactionCategory.GROCERIES, null),
                 new Part(new BigDecimal("120.0000"), TransactionCategory.SHOPPING, null))));
 
@@ -105,23 +105,23 @@ class SplitServiceTest {
         SplitRequest one = new SplitRequest(List.of(
                 new Part(new BigDecimal("200.00"), TransactionCategory.GROCERIES, null)));
 
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, one));
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, new SplitRequest(null)));
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, null));
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, one));
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, new SplitRequest(null)));
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, null));
     }
 
     @Test
     void refusesZeroNegativeOrMissingAmountsAndMissingCategories() {
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, new SplitRequest(List.of(
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, new SplitRequest(List.of(
                 new Part(new BigDecimal("200.00"), TransactionCategory.GROCERIES, null),
                 new Part(BigDecimal.ZERO, TransactionCategory.SHOPPING, null)))));
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, new SplitRequest(List.of(
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, new SplitRequest(List.of(
                 new Part(new BigDecimal("300.00"), TransactionCategory.GROCERIES, null),
                 new Part(new BigDecimal("-100.00"), TransactionCategory.SHOPPING, null)))));
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, new SplitRequest(List.of(
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, new SplitRequest(List.of(
                 new Part(null, TransactionCategory.GROCERIES, null),
                 new Part(new BigDecimal("200.00"), TransactionCategory.SHOPPING, null)))));
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, new SplitRequest(List.of(
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, new SplitRequest(List.of(
                 new Part(new BigDecimal("80.00"), null, null),
                 new Part(new BigDecimal("120.00"), TransactionCategory.SHOPPING, null)))));
     }
@@ -134,30 +134,38 @@ class SplitServiceTest {
         }
         walmart.setAmount(new BigDecimal(many.size()));
 
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, new SplitRequest(many)));
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, new SplitRequest(many)));
     }
 
     @Test
     void anAlreadySplitReceiptHasToBeJoinedBeforeSplittingAgain() {
-        service.split(5L, twoLines());
+        service.split(1L, 5L, twoLines());
 
-        assertThrows(IllegalArgumentException.class, () -> service.split(5L, twoLines()));
+        assertThrows(IllegalArgumentException.class, () -> service.split(1L, 5L, twoLines()));
     }
 
     @Test
     void aMissingTransactionIsReportedAsNotFound() {
-        when(repository.findById(404L)).thenReturn(Optional.empty());
+        when(repository.findByIdAndUserId(404L, 1L)).thenReturn(Optional.empty());
 
-        assertThrows(NoSuchElementException.class, () -> service.split(404L, twoLines()));
-        assertThrows(NoSuchElementException.class, () -> service.join(404L));
+        assertThrows(NoSuchElementException.class, () -> service.split(1L, 404L, twoLines()));
+        assertThrows(NoSuchElementException.class, () -> service.join(1L, 404L));
+    }
+
+    @Test
+    void anotherUsersTransactionIsReportedAsNotFound() {
+        when(repository.findByIdAndUserId(5L, 2L)).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () -> service.split(2L, 5L, twoLines()));
+        assertThrows(NoSuchElementException.class, () -> service.join(2L, 5L));
     }
 
     @Test
     void joiningPutsTheOriginalChargeBackAndRemovesTheOtherLines() {
-        List<Transaction> parts = service.split(5L, twoLines());
+        List<Transaction> parts = service.split(1L, 5L, twoLines());
         when(repository.findByUserIdAndSplitGroup(1L, parts.get(0).getSplitGroup())).thenReturn(parts);
 
-        Transaction joined = service.join(5L);
+        Transaction joined = service.join(1L, 5L);
 
         assertEquals("WALMART SUPERCENTER", joined.getDescription());
         assertEquals(0, new BigDecimal("200.00").compareTo(joined.getAmount()));
@@ -170,6 +178,6 @@ class SplitServiceTest {
 
     @Test
     void joiningAnOrdinaryTransactionIsRefused() {
-        assertThrows(IllegalArgumentException.class, () -> service.join(5L));
+        assertThrows(IllegalArgumentException.class, () -> service.join(1L, 5L));
     }
 }

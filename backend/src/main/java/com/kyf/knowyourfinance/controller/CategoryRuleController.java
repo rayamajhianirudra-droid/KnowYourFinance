@@ -1,10 +1,12 @@
 package com.kyf.knowyourfinance.controller;
 
+import com.kyf.knowyourfinance.auth.AccountPrincipal;
 import com.kyf.knowyourfinance.dto.RuleRequest;
 import com.kyf.knowyourfinance.dto.RuleResult;
 import com.kyf.knowyourfinance.model.CategoryRule;
 import com.kyf.knowyourfinance.service.CategoryRuleService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,22 +24,19 @@ public class CategoryRuleController {
     }
 
     @GetMapping
-    public List<CategoryRule> list(@RequestParam Long userId) {
-        checkUser(userId);
-        return service.list(userId);
+    public List<CategoryRule> list(@AuthenticationPrincipal AccountPrincipal account) {
+        return service.list(account.ownerId());
     }
 
     @PostMapping
-    public RuleResult save(@RequestParam Long userId, @RequestBody RuleRequest request) {
-        checkUser(userId);
-        return service.save(userId, request);
+    public RuleResult save(@AuthenticationPrincipal AccountPrincipal account, @RequestBody RuleRequest request) {
+        return service.save(account.ownerId(), request);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestParam Long userId) {
-        checkUser(userId);
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal AccountPrincipal account, @PathVariable Long id) {
         try {
-            service.delete(userId, id);
+            service.delete(account.ownerId(), id);
             return ResponseEntity.noContent().build();
         } catch (NoSuchElementException e) {
             return ResponseEntity.notFound().build();
@@ -47,11 +46,5 @@ public class CategoryRuleController {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> badRequest(IllegalArgumentException e) {
         return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-    }
-
-    private static void checkUser(Long userId) {
-        if (userId == null || userId < 1) {
-            throw new IllegalArgumentException("Choose a valid user.");
-        }
     }
 }
