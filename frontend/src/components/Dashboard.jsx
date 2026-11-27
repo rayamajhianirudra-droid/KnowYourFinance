@@ -10,6 +10,7 @@ import { categoryLabel, formatCurrency, formatDayCellCurrency, formatPercent } f
 const TrendsChart = lazy(() => import("./TrendsChart"));
 const CategoryDonut = lazy(() => import("./CategoryDonut"));
 import EmptyState from "./EmptyState";
+import SampleDataButton from "./SampleDataButton";
 import PageHero from "./PageHero";
 import { toLocalDateInput, todayInput } from "../utils/dates";
 import {
@@ -41,7 +42,7 @@ function startOfMonthInput(date) {
  * list) comes from the same Transaction data manual entry and
  * statement import both write to.
  */
-function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTransactions }) {
+function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onSampleLoaded, onViewTransactions }) {
   const now = useMemo(() => new Date(), []);
   const [periodType, setPeriodType] = useState("this");
   const [customYear, setCustomYear] = useState(now.getFullYear());
@@ -206,6 +207,7 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
           message="Upload a statement or add your first transaction to start understanding your finances."
           onUploadClick={onUploadClick}
           onAddClick={onAddClick}
+          extra={onSampleLoaded ? <SampleDataButton onLoaded={onSampleLoaded} /> : null}
         />
       )}
 

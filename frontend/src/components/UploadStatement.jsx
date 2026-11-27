@@ -1,7 +1,8 @@
 import PageHero from "./PageHero";
 import StatementHelp from "./StatementHelp";
-import { useRef, useState } from "react";
-import { uploadStatements, MAX_UPLOAD_FILES, ACCEPTED_EXTENSIONS } from "../api";
+import SampleDataButton from "./SampleDataButton";
+import { useEffect, useRef, useState } from "react";
+import { uploadStatements, listTransactions, MAX_UPLOAD_FILES, ACCEPTED_EXTENSIONS } from "../api";
 import { formatCurrency } from "../utils/format";
 import { summarizeBatch } from "../utils/uploadSummary";
 import { UploadIcon, LockIcon, CheckCircleIcon, AlertIcon } from "./Icons";
@@ -75,6 +76,22 @@ function UploadStatement({ onImported }) {
   const [notice, setNotice] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef(null);
+
+  // The sample data is only offered to someone with no data yet, so it can
+  // never end up mixed in with real transactions.
+  const [hasNoData, setHasNoData] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => listTransactions())
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows) && rows.length === 0) setHasNoData(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleFiles(fileList) {
     const chosen = Array.from(fileList || []);
@@ -194,6 +211,13 @@ function UploadStatement({ onImported }) {
             </p>
           )}
         </>
+      )}
+
+      {(stage === "idle" || stage === "error") && hasNoData && (
+        <div className="panel">
+          <p><strong>Just looking around?</strong> You can try the app without using your own statement.</p>
+          <SampleDataButton onLoaded={onImported} />
+        </div>
       )}
 
       {(stage === "idle" || stage === "error") && <StatementHelp />}

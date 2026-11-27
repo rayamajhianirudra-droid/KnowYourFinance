@@ -1,5 +1,4 @@
-/* ============================================================
-   KnowYourFinance - component styles
+/* =====================================================   KnowYourFinance - component styles
    Built on top of the design tokens in index.css. One border-radius
    system (--radius-sm/md/lg), one spacing scale (--space-1..6), no
    gradients, no glassmorphism, no heavy shadows - a calm, restrained
@@ -2298,4 +2297,22 @@
 .spending-scenario {
   background: var(--color-surface-soft);
   box-shadow: none;
+}
+
+/* "Try with sample data" */
+.sample-data {
+  margin-top: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.empty-state .sample-data {
+  justify-items: center;
+  text-align: center;
+}
+
+.sample-data__hint {
+  margin: 0;
+  max-width: 52ch;
 }
