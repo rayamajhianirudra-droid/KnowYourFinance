@@ -2255,3 +2255,47 @@
   gap: var(--space-1);
   margin-top: var(--space-3);
 }
+
+/* "How to get your statement" help on the Upload page */
+.statement-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.statement-help__steps {
+  margin: var(--space-2) 0;
+  padding-left: 1.3em;
+  display: grid;
+  gap: 6px;
+}
+
+.statement-help__heading {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 1rem;
+}
+
+.statement-help__banks {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.statement-help__banks dt {
+  font-weight: 600;
+}
+
+.statement-help__banks dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.statement-help a {
+  color: var(--color-interactive);
+  font-weight: 600;
+}
+
+/* The what-if panel is a side tool, so it stays quieter than the main numbers. */
+.spending-scenario {
+  background: var(--color-surface-soft);
+  box-shadow: none;
+}

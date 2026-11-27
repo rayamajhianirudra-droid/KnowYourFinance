@@ -1,4 +1,5 @@
 import PageHero from "./PageHero";
+import StatementHelp from "./StatementHelp";
 import { useRef, useState } from "react";
 import { uploadStatements, MAX_UPLOAD_FILES, ACCEPTED_EXTENSIONS } from "../api";
 import { formatCurrency } from "../utils/format";
@@ -194,6 +195,8 @@ function UploadStatement({ onImported }) {
           )}
         </>
       )}
+
+      {(stage === "idle" || stage === "error") && <StatementHelp />}
 
       {(stage === "idle" || stage === "error") && (
         <section className="upload-help" aria-label="How the upload works">

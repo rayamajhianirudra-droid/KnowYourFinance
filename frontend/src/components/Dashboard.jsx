@@ -252,17 +252,6 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
             <RateCard rate={savingsRate} previousRate={previousSavingsRate} />
           </div>
 
-          {!recentLoading && !error && (
-            <SpendingScenario
-              key={`${scenarioStart}/${scenarioEnd}/${refreshKey}`}
-              transactions={allTransactions}
-              start={scenarioStart}
-              end={scenarioEnd}
-              expenses={Number(report.totalExpenses)}
-              savings={Number(report.netSavings)}
-            />
-          )}
-
           <Suspense fallback={<p className="muted">Loading chart...</p>}>
             <TrendsChart refreshKey={refreshKey} />
           </Suspense>
@@ -322,6 +311,19 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
             />
           )}
           <RecurringBills bills={recurringBills} today={todayInput()} />
+
+          {/* A side experiment, not part of the daily overview, so it sits
+              at the very bottom where it does not crowd the main numbers. */}
+          {!recentLoading && !error && (
+            <SpendingScenario
+              key={`${scenarioStart}/${scenarioEnd}/${refreshKey}`}
+              transactions={allTransactions}
+              start={scenarioStart}
+              end={scenarioEnd}
+              expenses={Number(report.totalExpenses)}
+              savings={Number(report.netSavings)}
+            />
+          )}
         </>
       )}
     </div>
