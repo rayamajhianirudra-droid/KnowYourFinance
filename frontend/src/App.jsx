@@ -9,6 +9,8 @@ import ManualEntry from "./components/ManualEntry";
 import ProfileBadge from "./components/ProfileBadge";
 import ThemeToggle from "./components/ThemeToggle";
 import ResetDataDialog from "./components/ResetDataDialog";
+import YourData from "./components/YourData";
+import { useIdleSignOut } from "./utils/useIdleSignOut";
 import ReceiptScanner from "./components/ReceiptScanner";
 import { getProfile } from "./api";
 import { DashboardIcon, UploadIcon, PlusIcon, ListIcon, LockIcon, SavingsIcon } from "./components/Icons";
@@ -34,11 +36,13 @@ function App() {
   return <AccountGate>{(session) => <FinanceApp {...session} />}</AccountGate>;
 }
 
-function FinanceApp({ signOut, pending, error }) {
+function FinanceApp({ account, signOut, pending, error }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [refreshKey, setRefreshKey] = useState(0);
   const [fullName, setFullName] = useState(null);
   const [resetOpen, setResetOpen] = useState(false);
+  const [dataOpen, setDataOpen] = useState(false);
+  useIdleSignOut(signOut);
   const [scanOpen, setScanOpen] = useState(false);
   const [flash, setFlash] = useState(null);
 
@@ -85,6 +89,10 @@ function FinanceApp({ signOut, pending, error }) {
 
   function goToManual() {
     setActiveTab("manual");
+  }
+
+  function goToBudgets() {
+    setActiveTab("budgets");
   }
 
   function goToTransactions() {
@@ -154,6 +162,7 @@ function FinanceApp({ signOut, pending, error }) {
         </div>
         <div className="content-container account-actions">
           {error && <p role="alert">{error}</p>}
+          <button type="button" className="btn btn--secondary" onClick={() => setDataOpen(true)}>Your data</button>
           <button type="button" className="btn btn--secondary" onClick={signOut} disabled={pending}>Sign out</button>
         </div>
       </header>
@@ -171,6 +180,7 @@ function FinanceApp({ signOut, pending, error }) {
               onAddClick={goToManual}
               onScanClick={() => setScanOpen(true)}
               onSampleLoaded={handleImported}
+              onBudgetsClick={goToBudgets}
               onViewTransactions={goToTransactions}
             />
           )}
@@ -186,6 +196,17 @@ function FinanceApp({ signOut, pending, error }) {
           )}
         </div>
       </main>
+
+      {dataOpen && (
+        <YourData
+          email={account?.email}
+          onClose={() => setDataOpen(false)}
+          onDeleted={() => {
+            setDataOpen(false);
+            window.dispatchEvent(new Event("kyf-session-expired"));
+          }}
+        />
+      )}
 
       {scanOpen && (
         <ReceiptScanner onClose={() => setScanOpen(false)} onSaved={handleReceiptSaved} />

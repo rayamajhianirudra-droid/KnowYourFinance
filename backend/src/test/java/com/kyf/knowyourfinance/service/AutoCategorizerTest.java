@@ -56,6 +56,13 @@ class AutoCategorizerTest {
     }
 
     @Test
+    void movingMoneyBetweenYourOwnAccountsIsATransfer() {
+        assertEquals(TransactionCategory.TRANSFER, categorizer.categorize("ONLINE TRANSFER TO SAVINGS"));
+        assertEquals(TransactionCategory.TRANSFER, categorizer.categorize("CREDIT CARD PAYMENT CHASE"));
+        assertEquals(TransactionCategory.TRANSFER, categorizer.categorize("PAYMENT THANK YOU"));
+    }
+
+    @Test
     void aKeywordMatchMeetsTheConfidenceThreshold() {
         AutoCategorizer.CategorizationResult result =
                 categorizer.categorizeWithConfidence("NETFLIX.COM");

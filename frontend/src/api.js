@@ -396,3 +396,19 @@ export async function deleteRule(id) {
     throw new Error(`Failed to remove rule (${response.status})`);
   }
 }
+
+/**
+ * Deletes the signed-in account and everything stored for it. The password
+ * is checked again by the server. Resolves when the account is gone.
+ */
+export async function deleteAccount(password) {
+  const response = await apiFetch(`${API_BASE}/auth/account`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  }, { notifyExpiry: false });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Could not delete your account (${response.status})`);
+  }
+}

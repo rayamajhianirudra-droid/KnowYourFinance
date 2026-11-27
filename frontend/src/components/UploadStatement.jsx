@@ -2,7 +2,8 @@ import PageHero from "./PageHero";
 import StatementHelp from "./StatementHelp";
 import SampleDataButton from "./SampleDataButton";
 import { useEffect, useRef, useState } from "react";
-import { uploadStatements, listTransactions, MAX_UPLOAD_FILES, ACCEPTED_EXTENSIONS } from "../api";
+import { uploadStatements, listTransactions, deleteTransaction, MAX_UPLOAD_FILES, ACCEPTED_EXTENSIONS } from "../api";
+import { importedIds, rememberImport, lastImport, forgetImport } from "../utils/lastImport";
 import { formatCurrency } from "../utils/format";
 import { summarizeBatch } from "../utils/uploadSummary";
 import { UploadIcon, LockIcon, CheckCircleIcon, AlertIcon } from "./Icons";
@@ -72,6 +73,9 @@ function UploadStatement({ onImported }) {
   const [files, setFiles] = useState([]);
   const [stage, setStage] = useState("idle");
   const [preview, setPreview] = useState(null);
+  const [undoable, setUndoable] = useState(() => lastImport()?.ids.length ?? 0);
+  const [undoing, setUndoing] = useState(false);
+  const [undoMessage, setUndoMessage] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -116,6 +120,26 @@ function UploadStatement({ onImported }) {
     }
   }
 
+  async function handleUndo() {
+    const saved = lastImport();
+    if (!saved) return;
+    setUndoing(true);
+    setError(null);
+    const results = await Promise.allSettled(saved.ids.map((id) => deleteTransaction(id)));
+    const failed = results.filter((r) => r.status === "rejected").length;
+    // A row that is already gone counts as undone, so only real failures stay.
+    forgetImport();
+    setUndoable(0);
+    setUndoing(false);
+    setUndoMessage(failed === 0
+      ? `Removed the ${saved.ids.length} transaction${saved.ids.length === 1 ? "" : "s"} from your last import.`
+      : `Removed what could be removed. ${failed} could not be deleted, so check the Transactions page.`);
+    setFiles([]);
+    setPreview(null);
+    setStage("idle");
+    onImported?.();
+  }
+
   async function handleConfirm() {
     setStage("saving");
     setError(null);
@@ -124,6 +148,11 @@ function UploadStatement({ onImported }) {
     const toSave = files.filter((f) => readable.has(f.name));
     try {
       const response = await uploadStatements(toSave, { preview: false });
+      const ids = importedIds(response);
+      if (ids.length > 0) {
+        rememberImport(ids);
+        setUndoable(ids.length);
+      }
       setPreview(summarizeBatch(response));
       setStage("done");
       onImported?.();
@@ -339,11 +368,31 @@ function UploadStatement({ onImported }) {
             </p>
           )}
           <FileResults files={preview.files} doneLabel="Added" />
-          <button type="button" className="btn btn--secondary" onClick={handleCancel}>
-            Upload more statements
+          <div className="upload-result__actions">
+            <button type="button" className="btn btn--secondary" onClick={handleCancel}>
+              Upload more statements
+            </button>
+            {undoable > 0 && (
+              <button type="button" className="btn btn--secondary" onClick={handleUndo} disabled={undoing}>
+                {undoing ? "Removing..." : "Undo this import"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {stage !== "done" && undoable > 0 && (
+        <div className="panel undo-import">
+          <p>
+            Your last import added <strong>{undoable}</strong> transaction{undoable === 1 ? "" : "s"}.
+            Picked the wrong file? You can remove them in one click.
+          </p>
+          <button type="button" className="btn btn--secondary" onClick={handleUndo} disabled={undoing}>
+            {undoing ? "Removing..." : "Undo last import"}
           </button>
         </div>
       )}
+      {undoMessage && <p role="status" className="undo-import__message">{undoMessage}</p>}
     </div>
   );
 }

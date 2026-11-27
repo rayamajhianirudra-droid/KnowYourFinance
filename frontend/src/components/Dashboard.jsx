@@ -6,6 +6,8 @@ import SavingsGoals from "./SavingsGoals";
 import { summarizeHistory } from "../utils/financialPlanning";
 import MonthlyReportExport from "./MonthlyReportExport";
 import FinancialPlanning from "./FinancialPlanning";
+import MonthStory from "./MonthStory";
+import FirstRunChecklist from "./FirstRunChecklist";
 import { detectRecurring } from "../utils/recurring";
 import { categoryLabel, formatCurrency, formatDayCellCurrency, formatPercent } from "../utils/format";
 // The two chart components pull in the whole recharts library, which is
@@ -45,7 +47,7 @@ function startOfMonthInput(date) {
  * list) comes from the same Transaction data manual entry and
  * statement import both write to.
  */
-function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onScanClick, onSampleLoaded, onViewTransactions }) {
+function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onScanClick, onSampleLoaded, onBudgetsClick, onViewTransactions }) {
   const now = useMemo(() => new Date(), []);
   const [periodType, setPeriodType] = useState("this");
   const [customYear, setCustomYear] = useState(now.getFullYear());
@@ -223,6 +225,21 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onScanClic
         )}
       </PageHero>
 
+      {!recentLoading && allTransactions.length > 0 && goals !== null && (
+        <FirstRunChecklist
+          hasTransactions
+          hasGoal={goals.length > 0}
+          monthKey={`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`}
+          onBudgets={onBudgetsClick}
+          onGoals={() => document.getElementById("savings-goals")?.scrollIntoView?.({ behavior: "smooth" })}
+          refreshKey={refreshKey}
+        />
+      )}
+
+      {resolved.kind === "month" && !recentLoading && allTransactions.length > 0 && (
+        <MonthStory rows={allTransactions} year={resolved.year} month={resolved.month} refreshKey={refreshKey} />
+      )}
+
       {!recentLoading && allTransactions.length > 0 && <FinancialPlanning
         rows={allTransactions}
         bills={billForecast}
@@ -385,8 +402,8 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onScanClic
           )}
         </>
       )}
-      {goals !== null && <SavingsGoals goals={goals} today={today}
-        monthlyCashFlow={monthlyCashFlow} onChange={setGoals} />}
+      {goals !== null && <div id="savings-goals"><SavingsGoals goals={goals} today={today}
+        monthlyCashFlow={monthlyCashFlow} onChange={setGoals} /></div>}
     </div>
   );
 }

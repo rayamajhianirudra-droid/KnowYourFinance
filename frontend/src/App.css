@@ -2637,3 +2637,97 @@
   margin: 0;
   max-width: 52ch;
 }
+
+/* "What changed this month" */
+.month-story__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.month-story__budgets {
+  margin-top: var(--space-3);
+}
+
+.month-story__budgets h3 {
+  margin: 0 0 var(--space-1);
+  font-size: 0.95rem;
+}
+
+.month-story__budgets ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.month-story__budget--over {
+  color: var(--color-danger, #b42318);
+}
+
+/* Undo the last statement import */
+.upload-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.undo-import {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.undo-import p,
+.undo-import__message {
+  margin: 0;
+}
+
+/* Your data dialog */
+.your-data__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.your-data__delete {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.your-data__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+/* First-run checklist */
+.checklist__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.checklist__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.checklist__step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checklist__step--done {
+  color: var(--color-text-muted, #5b6560);
+}

@@ -78,7 +78,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      */
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
             "WHERE t.userId = :userId AND t.type = :type " +
-            "AND t.date BETWEEN :start AND :end")
+            "AND t.date BETWEEN :start AND :end " +
+            "AND (t.category IS NULL OR t.category <> com.kyf.knowyourfinance.model.TransactionCategory.TRANSFER) ")
     BigDecimal sumAmountByUserAndTypeAndDateRange(
             @Param("userId") Long userId,
             @Param("type") TransactionType type,
@@ -102,6 +103,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "FROM Transaction t " +
             "WHERE t.userId = :userId AND t.type = com.kyf.knowyourfinance.model.TransactionType.EXPENSE " +
             "AND t.date BETWEEN :start AND :end " +
+            "AND (t.category IS NULL OR t.category <> com.kyf.knowyourfinance.model.TransactionCategory.TRANSFER) " +
             "GROUP BY t.category")
     List<CategoryTotal> sumExpensesByCategory(
             @Param("userId") Long userId,
@@ -143,6 +145,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "t.type AS type, COALESCE(SUM(t.amount), 0) AS total " +
             "FROM transactions t " +
             "WHERE t.user_id = :userId AND t.date BETWEEN :start AND :end " +
+            "AND (t.category IS NULL OR t.category <> 'TRANSFER') " +
             "GROUP BY 1, 2, 3", nativeQuery = true)
     List<MonthlyTypeTotal> sumByMonthAndType(
             @Param("userId") Long userId,

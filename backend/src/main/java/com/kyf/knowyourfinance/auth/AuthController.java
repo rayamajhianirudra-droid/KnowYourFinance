@@ -1,5 +1,6 @@
 package com.kyf.knowyourfinance.auth;
 
+import com.kyf.knowyourfinance.service.DataResetService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,17 +33,19 @@ public class AuthController {
     private final HttpSessionSecurityContextRepository sessions;
     private final CsrfTokenRepository csrfTokens;
     private final CredentialRateLimiter rateLimiter;
+    private final DataResetService dataReset;
     private final String dummyHash;
 
     AuthController(AccountRepository accounts, PasswordEncoder passwords, AccountRegistration registration,
                    HttpSessionSecurityContextRepository sessions, CsrfTokenRepository csrfTokens,
-                   CredentialRateLimiter rateLimiter) {
+                   CredentialRateLimiter rateLimiter, DataResetService dataReset) {
         this.accounts = accounts;
         this.passwords = passwords;
         this.registration = registration;
         this.sessions = sessions;
         this.csrfTokens = csrfTokens;
         this.rateLimiter = rateLimiter;
+        this.dataReset = dataReset;
         dummyHash = passwords.encode(java.util.UUID.randomUUID().toString());
     }
 
@@ -84,6 +88,31 @@ public class AuthController {
         return authenticate(account, request, response);
     }
 
+    /**
+     * Deletes the signed-in account and everything stored for it. The
+     * password is asked for again so that a left-open browser cannot
+     * remove an account.
+     */
+    @DeleteMapping("/account")
+    public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal AccountPrincipal principal,
+                                              @Valid @RequestBody PasswordConfirmation confirmation,
+                                              HttpServletRequest request) {
+        rateLimiter.check(request.getRemoteAddr());
+        checkPasswordLength(confirmation.password());
+        Account account = accounts.findByEmail(principal.email()).orElse(null);
+        if (account == null || !passwords.matches(confirmation.password(), account.passwordHash())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "That password is not correct.");
+        }
+        dataReset.reset(account.ownerId(), true);
+        accounts.delete(account);
+        var session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.noContent().build();
+    }
+
     private SessionView authenticate(Account account, HttpServletRequest request, HttpServletResponse response) {
         request.getSession();
         request.changeSessionId();
@@ -112,6 +141,8 @@ public class AuthController {
             return email.toLowerCase(Locale.ROOT);
         }
     }
+
+    public record PasswordConfirmation(@NotBlank @Size(max = 72) String password) {}
 
     public record SessionView(String email) {}
 }
