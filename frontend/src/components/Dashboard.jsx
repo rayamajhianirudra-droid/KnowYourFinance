@@ -231,7 +231,7 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onScanClic
           hasGoal={goals.length > 0}
           monthKey={`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`}
           onBudgets={onBudgetsClick}
-          onGoals={() => document.getElementById("savings-goals")?.scrollIntoView?.({ behavior: "smooth" })}
+          onGoals={() => document.getElementById("goals-anchor")?.scrollIntoView?.({ behavior: "smooth" })}
           refreshKey={refreshKey}
         />
       )}
@@ -402,7 +402,7 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onScanClic
           )}
         </>
       )}
-      {goals !== null && <div id="savings-goals"><SavingsGoals goals={goals} today={today}
+      {goals !== null && <div id="goals-anchor"><SavingsGoals goals={goals} today={today}
         monthlyCashFlow={monthlyCashFlow} onChange={setGoals} /></div>}
     </div>
   );
