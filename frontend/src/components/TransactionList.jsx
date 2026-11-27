@@ -1,10 +1,14 @@
 import PageHero from "./PageHero";
 import { useEffect, useMemo, useState } from "react";
-import { listTransactions, updateTransaction, deleteTransaction, joinSplit } from "../api";
+import { listTransactions, updateTransaction, deleteTransaction, joinSplit, listRules, saveRule, deleteRule } from "../api";
 import { formatCurrency, categoryLabel, CATEGORIES } from "../utils/format";
 import { downloadTransactionsCsv } from "../utils/csvExport";
 import { SearchIcon, ArrowUpIcon, ArrowDownIcon, EditIcon, TrashIcon, CheckCircleIcon, XIcon, SplitIcon, JoinIcon } from "./Icons";
 import SplitDialog from "./SplitDialog";
+import MerchantRules from "./MerchantRules";
+import RuleOffer from "./RuleOffer";
+import ReceiptScanner from "./ReceiptScanner";
+import { countOthers, isMixedStore, suggestPattern } from "../utils/merchant";
 import EmptyState from "./EmptyState";
 
 const TYPE_FILTERS = [
@@ -55,6 +59,16 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
   const [splitting, setSplitting] = useState(null);
   const [joiningId, setJoiningId] = useState(null);
 
+  // Merchant rules: after a category is changed by hand the app offers to
+  // remember it. offer holds the suggestion, rules the saved list.
+  const [rules, setRules] = useState([]);
+  const [offer, setOffer] = useState(null);
+  const [offerBusy, setOfferBusy] = useState(false);
+  const [offerError, setOfferError] = useState(null);
+  const [ruleBusyId, setRuleBusyId] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [scanning, setScanning] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     listTransactions()
@@ -62,6 +76,71 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [refreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(listRules())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data)) setRules(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  function maybeOfferRule(updated) {
+    if (updated.splitGroup) return;
+    const pattern = suggestPattern(updated.description);
+    if (!pattern) return;
+    const known = rules.find((r) => r.pattern === pattern && r.category === updated.category);
+    if (known) return;
+    setOfferError(null);
+    setNotice(null);
+    setOffer({ pattern, category: updated.category, sourceId: updated.id });
+  }
+
+  async function acceptOffer(applyToExisting) {
+    setOfferBusy(true);
+    setOfferError(null);
+    try {
+      const result = await saveRule({
+        pattern: offer.pattern,
+        category: offer.category,
+        applyToExisting,
+      });
+      setRules((prev) => {
+        const rest = prev.filter((r) => r.id !== result.rule.id && r.pattern !== result.rule.pattern);
+        return [...rest, result.rule].sort((a, b) => a.pattern.localeCompare(b.pattern));
+      });
+      if (result.updated > 0) {
+        const fresh = await listTransactions();
+        setTransactions(fresh);
+      }
+      setNotice(
+        result.updated > 0
+          ? `Remembered. ${result.updated} other transaction${result.updated === 1 ? "" : "s"} moved to ${categoryLabel(offer.category)}.`
+          : "Remembered. Future uploads will use it."
+      );
+      setOffer(null);
+    } catch (err) {
+      setOfferError(err.message);
+    } finally {
+      setOfferBusy(false);
+    }
+  }
+
+  async function removeRule(rule) {
+    setRuleBusyId(rule.id);
+    try {
+      await deleteRule(rule.id);
+      setRules((prev) => prev.filter((r) => r.id !== rule.id));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRuleBusyId(null);
+    }
+  }
 
   async function handleCategoryChange(transaction, newCategory) {
     setSavingId(transaction.id);
@@ -73,6 +152,7 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       setTransactions((prev) =>
         prev.map((t) => (t.id === updated.id ? updated : t))
       );
+      maybeOfferRule(updated);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -153,6 +233,16 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       setError(err.message);
     } finally {
       setJoiningId(null);
+    }
+  }
+
+  async function handleReceiptSaved(message) {
+    setScanning(false);
+    setNotice(message);
+    try {
+      setTransactions(await listTransactions());
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -290,6 +380,10 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
           Export CSV
         </button>
 
+        <button type="button" className="btn btn--secondary" onClick={() => setScanning(true)}>
+          Scan receipt
+        </button>
+
         {hasActiveFilters && (
           <button
             type="button"
@@ -306,6 +400,21 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
         <p id="transaction-date-error" className="error" role="alert">
           The From date must be on or before the To date.
         </p>
+      )}
+
+      {offer && (
+        <RuleOffer
+          offer={offer}
+          matches={(pattern) => countOthers(transactions, pattern, offer.category, offer.sourceId)}
+          busy={offerBusy}
+          error={offerError}
+          onPatternChange={(pattern) => setOffer((o) => ({ ...o, pattern }))}
+          onAccept={acceptOffer}
+          onDismiss={() => setOffer(null)}
+        />
+      )}
+      {notice && !offer && (
+        <p className="notice" role="status">{notice}</p>
       )}
 
       {loading && (
@@ -436,6 +545,16 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
                     <td className="cell-date" data-label="Date">{t.date}</td>
                     <td className="cell-description" data-label="Description">
                       {t.description}
+                      {!t.splitGroup && t.type === "EXPENSE" && isMixedStore(t.description) && (
+                        <button
+                          type="button"
+                          className="split-hint"
+                          onClick={() => setSplitting(t)}
+                          title="Stores like this often sell food and other things in one purchase"
+                        >
+                          Mixed receipt? Split it
+                        </button>
+                      )}
                       {t.splitGroup && (
                         <span
                           className="split-badge"
@@ -553,6 +672,18 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
             Showing {filtered.length} of {transactions.length} transaction{transactions.length === 1 ? "" : "s"}.
           </p>
         </div>
+      )}
+
+      {!loading && (
+        <MerchantRules rules={rules} onRemove={removeRule} busyId={ruleBusyId} />
+      )}
+
+      {scanning && (
+        <ReceiptScanner
+          transactions={transactions}
+          onClose={() => setScanning(false)}
+          onSaved={handleReceiptSaved}
+        />
       )}
 
       {splitting && (
