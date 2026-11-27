@@ -1628,9 +1628,14 @@
 }
 
 .page-hero--art .page-hero__text {
-  max-width: 46ch;
+  /* Wide enough for three buttons in a row; the sentence stays narrow. */
+  max-width: 64ch;
   position: relative;
   z-index: 1;
+}
+
+.page-hero--art .page-subtitle {
+  max-width: 46ch;
 }
 
 .page-hero--art + * {

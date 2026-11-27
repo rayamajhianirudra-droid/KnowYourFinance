@@ -14,8 +14,7 @@ import PageHero from "./PageHero";
 import { toLocalDateInput, todayInput } from "../utils/dates";
 import {
   IncomeIcon, ExpenseIcon, SavingsIcon, RateIcon,
-  ArrowUpIcon, ArrowDownIcon, UploadIcon, PlusIcon,
-} from "./Icons";
+  ArrowUpIcon, ArrowDownIcon, UploadIcon, PlusIcon, ReceiptIcon } from "./Icons";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -41,7 +40,7 @@ function startOfMonthInput(date) {
  * list) comes from the same Transaction data manual entry and
  * statement import both write to.
  */
-function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTransactions }) {
+function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onScanClick, onViewTransactions }) {
   const now = useMemo(() => new Date(), []);
   const [periodType, setPeriodType] = useState("this");
   const [customYear, setCustomYear] = useState(now.getFullYear());
@@ -166,7 +165,7 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
         art
       >
         {/* The two things people do most, one click from the top of the page. */}
-        {(onUploadClick || onAddClick) && (
+        {(onUploadClick || onAddClick || onScanClick) && (
           <div className="page-hero__actions">
             {onUploadClick && (
               <button type="button" className="btn btn--primary" onClick={onUploadClick}>
@@ -178,6 +177,12 @@ function Dashboard({ fullName, refreshKey, onUploadClick, onAddClick, onViewTran
               <button type="button" className="btn btn--secondary" onClick={onAddClick}>
                 <PlusIcon width={16} height={16} aria-hidden="true" />
                 Add transaction
+              </button>
+            )}
+            {onScanClick && (
+              <button type="button" className="btn btn--secondary" onClick={onScanClick}>
+                <ReceiptIcon width={16} height={16} aria-hidden="true" />
+                Scan receipt
               </button>
             )}
           </div>
