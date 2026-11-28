@@ -2526,6 +2526,52 @@
   .receipt__line {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* "How to get your statement" help on the Upload page */
+.statement-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.statement-help__steps {
+  margin: var(--space-2) 0;
+  padding-left: 1.3em;
+  display: grid;
+  gap: 6px;
+}
+
+.statement-help__heading {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 1rem;
+}
+
+.statement-help__banks {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.statement-help__banks dt {
+  font-weight: 600;
+}
+
+.statement-help__banks dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.statement-help a {
+  color: var(--color-interactive);
+  font-weight: 600;
+}
+
+/* The what-if panel is a side tool, so it stays quieter than the main numbers. */
+.spending-scenario {
+  background: var(--color-surface-soft);
+  box-shadow: none;
+}
+
 .account-screen {
   display: grid;
   place-items: center;
@@ -2572,4 +2618,137 @@
 
 .spending-scenario details + details {
   margin-top: 0.75rem;
+}
+
+/* "Try with sample data" */
+.sample-data {
+  margin-top: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.empty-state .sample-data {
+  justify-items: center;
+  text-align: center;
+}
+
+.sample-data__hint {
+  margin: 0;
+  max-width: 52ch;
+}
+
+/* "What changed this month" */
+.month-story__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.month-story__budgets {
+  margin-top: var(--space-3);
+}
+
+.month-story__budgets h3 {
+  margin: 0 0 var(--space-1);
+  font-size: 0.95rem;
+}
+
+.month-story__budgets ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.month-story__budget--over {
+  color: var(--color-danger, #b42318);
+}
+
+/* Undo the last statement import */
+.upload-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.undo-import {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.undo-import p,
+.undo-import__message {
+  margin: 0;
+}
+
+/* Your data dialog */
+.your-data__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.your-data__delete {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.your-data__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+/* First-run checklist */
+.checklist__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.checklist__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.checklist__step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checklist__step--done {
+  color: var(--color-text-muted, #5b6560);
+}
+
+/* Choosing several transactions at once */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.row-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.row-select input {
+  width: auto;
+  margin: 0;
 }

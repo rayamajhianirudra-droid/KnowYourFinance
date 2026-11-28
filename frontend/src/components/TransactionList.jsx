@@ -68,6 +68,9 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
   const [ruleBusyId, setRuleBusyId] = useState(null);
   const [notice, setNotice] = useState(null);
   const [scanning, setScanning] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [bulkCategory, setBulkCategory] = useState("GROCERIES");
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -158,6 +161,31 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
     } finally {
       setSavingId(null);
     }
+  }
+
+  function toggleSelected(id) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  async function applyBulkCategory() {
+    const chosen = transactions.filter((t) => selected.includes(t.id) && t.category !== bulkCategory);
+    setBulkBusy(true);
+    setNotice(null);
+    const results = await Promise.allSettled(
+      chosen.map((t) => updateTransaction(t.id, { ...t, category: bulkCategory }))
+    );
+    const updatedRows = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+    if (updatedRows.length > 0) {
+      setTransactions((prev) => prev.map((t) => updatedRows.find((u) => u.id === t.id) ?? t));
+    }
+    const failed = results.length - updatedRows.length;
+    setNotice(
+      failed === 0
+        ? `Moved ${updatedRows.length} transaction${updatedRows.length === 1 ? "" : "s"} to ${categoryLabel(bulkCategory)}.`
+        : `Moved ${updatedRows.length}, but ${failed} could not be changed. Try those again.`
+    );
+    setSelected([]);
+    setBulkBusy(false);
   }
 
   function startEdit(t) {
@@ -445,6 +473,40 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       )}
 
       {!loading && filtered.length > 0 && (
+        <div className="bulk-bar">
+          <label className="row-select">
+            <input
+              type="checkbox"
+              checked={filtered.every((t) => selected.includes(t.id))}
+              onChange={(e) => setSelected(e.target.checked ? filtered.map((t) => t.id) : [])}
+              aria-label="Select all shown transactions"
+            />
+            <span>Select all {filtered.length} shown</span>
+          </label>
+          {selected.length > 0 && (
+            <>
+              <span>{selected.length} selected</span>
+              <select
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value)}
+                aria-label="Category for the selected transactions"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{categoryLabel(c)}</option>
+                ))}
+              </select>
+              <button type="button" className="btn btn--primary" onClick={applyBulkCategory} disabled={bulkBusy}>
+                {bulkBusy ? "Moving..." : "Move selected"}
+              </button>
+              <button type="button" className="btn btn--text" onClick={() => setSelected([])} disabled={bulkBusy}>
+                Clear selection
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
         <div className="panel table-panel">
           <table className="transactions-table">
             <thead>
@@ -542,7 +604,17 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
 
                 return (
                   <tr key={t.id}>
-                    <td className="cell-date" data-label="Date">{t.date}</td>
+                    <td className="cell-date" data-label="Date">
+                      <label className="row-select">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(t.id)}
+                          onChange={() => toggleSelected(t.id)}
+                          aria-label={`Select ${t.description}`}
+                        />
+                        <span>{t.date}</span>
+                      </label>
+                    </td>
                     <td className="cell-description" data-label="Description">
                       {t.description}
                       {!t.splitGroup && t.type === "EXPENSE" && isMixedStore(t.description) && (

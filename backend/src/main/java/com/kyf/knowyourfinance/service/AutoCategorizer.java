@@ -116,6 +116,11 @@ public class AutoCategorizer {
         KEYWORD_MAP.put("paycheck", TransactionCategory.INCOME);
 
         KEYWORD_MAP.put("transfer", TransactionCategory.TRANSFER);
+        // Paying a credit card from checking is money moving between the
+        // user's own accounts, not spending: the card's own purchases are
+        // what count.
+        KEYWORD_MAP.put("credit card payment", TransactionCategory.TRANSFER);
+        KEYWORD_MAP.put("payment thank you", TransactionCategory.TRANSFER);
     }
 
     /**
