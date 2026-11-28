@@ -21,6 +21,10 @@ async function run() {
     await page.getByLabel("Email").fill("browser-smoke@example.test");
     await page.getByLabel("Password").fill(randomBytes(24).toString("hex"));
     await page.getByRole("button", { name: "Create account", exact: true }).click();
+    await page.getByRole("heading", { name: "Save your recovery code" }).waitFor();
+    assert.match(await page.getByLabel("Your recovery code", { exact: true }).innerText(), /^([A-Z0-9]{4}-){4}[A-Z0-9]{4}$/);
+    await page.getByLabel("I have saved my recovery code").check();
+    await page.getByRole("button", { name: "Continue to my account" }).click();
     await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
 
     const csrfResponse = await page.request.get("/api/auth/csrf");

@@ -2752,3 +2752,39 @@
   width: auto;
   margin: 0;
 }
+
+/* Recovery code and password reset */
+.recovery {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.recovery__code {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px dashed currentColor;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.recovery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.recovery__confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recovery__confirm input {
+  width: auto;
+  margin: 0;
+}

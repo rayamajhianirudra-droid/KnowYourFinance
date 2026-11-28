@@ -412,3 +412,31 @@ export async function deleteAccount(password) {
     throw new Error(body?.message || `Could not delete your account (${response.status})`);
   }
 }
+
+async function accountRequest(path, body, fallback) {
+  const response = await apiFetch(`${API_BASE}/auth/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }, { notifyExpiry: false });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message || fallback);
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+/** Forgot password: the email plus the saved recovery code sets a new password. Returns { recoveryCode }. */
+export function resetPassword(email, recoveryCode, newPassword) {
+  return accountRequest("reset-password", { email, recoveryCode, newPassword }, "Could not reset the password. Try again.");
+}
+
+/** Signed in: sets a new password. The current one is required. */
+export function changePassword(currentPassword, newPassword) {
+  return accountRequest("password", { currentPassword, newPassword }, "Could not change the password. Try again.");
+}
+
+/** Signed in: replaces the recovery code. Returns { recoveryCode }. */
+export function newRecoveryCode(password) {
+  return accountRequest("recovery-code", { password }, "Could not make a new recovery code. Try again.");
+}

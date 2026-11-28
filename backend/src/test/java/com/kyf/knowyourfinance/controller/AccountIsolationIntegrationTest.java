@@ -165,6 +165,41 @@ class AccountIsolationIntegrationTest {
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
     }
 
+    @Test
+    void aForgottenPasswordIsRecoveredWithTheSavedCodeOnlyOnce() throws Exception {
+        String email = "recover-me@example.test";
+        var signup = post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("email", email, "password", "Synthetic test password")));
+        String body = mvc.perform(withCsrf(signup, new MockHttpSession()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recoveryCode").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String code = json.readTree(body).get("recoveryCode").asText();
+
+        var wrong = post("/api/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("email", email, "recoveryCode", "AAAA-AAAA-AAAA-AAAA-AAAA",
+                        "newPassword", "Another synthetic password")));
+        mvc.perform(withCsrf(wrong, new MockHttpSession())).andExpect(status().isUnauthorized());
+
+        var reset = post("/api/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("email", email, "recoveryCode", code,
+                        "newPassword", "Another synthetic password")));
+        mvc.perform(withCsrf(reset, new MockHttpSession()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recoveryCode").isNotEmpty());
+
+        var again = post("/api/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("email", email, "recoveryCode", code,
+                        "newPassword", "Yet another synthetic password")));
+        mvc.perform(withCsrf(again, new MockHttpSession())).andExpect(status().isUnauthorized());
+
+        var oldPassword = post("/api/auth/signin").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("email", email, "password", "Synthetic test password")));
+        mvc.perform(withCsrf(oldPassword, new MockHttpSession())).andExpect(status().isUnauthorized());
+
+        var newPassword = post("/api/auth/signin").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("email", email, "password", "Another synthetic password")));
+        mvc.perform(withCsrf(newPassword, new MockHttpSession())).andExpect(status().isOk());
+    }
+
     private MockHttpSession credentials(String action, String email) throws Exception {
         var session = new MockHttpSession();
         String preAuthId = session.getId();
