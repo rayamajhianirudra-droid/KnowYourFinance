@@ -10,6 +10,7 @@ import ProfileBadge from "./components/ProfileBadge";
 import ThemeToggle from "./components/ThemeToggle";
 import ResetDataDialog from "./components/ResetDataDialog";
 import YourData from "./components/YourData";
+import AccountActivityDialog from "./components/AccountActivityDialog";
 import { useIdleSignOut } from "./utils/useIdleSignOut";
 import ReceiptScanner from "./components/ReceiptScanner";
 import { getProfile } from "./api";
@@ -42,6 +43,7 @@ function FinanceApp({ account, signOut, pending, error }) {
   const [fullName, setFullName] = useState(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   useIdleSignOut(signOut);
   const [scanOpen, setScanOpen] = useState(false);
   const [flash, setFlash] = useState(null);
@@ -162,6 +164,7 @@ function FinanceApp({ account, signOut, pending, error }) {
         </div>
         <div className="content-container account-actions">
           {error && <p role="alert">{error}</p>}
+          <button type="button" className="btn btn--secondary" onClick={() => setActivityOpen(true)}>Activity</button>
           <button type="button" className="btn btn--secondary" onClick={() => setDataOpen(true)}>Your data</button>
           <button type="button" className="btn btn--secondary" onClick={signOut} disabled={pending}>Sign out</button>
         </div>
@@ -206,6 +209,10 @@ function FinanceApp({ account, signOut, pending, error }) {
             window.dispatchEvent(new Event("kyf-session-expired"));
           }}
         />
+      )}
+
+      {activityOpen && (
+        <AccountActivityDialog onClose={() => setActivityOpen(false)} />
       )}
 
       {scanOpen && (

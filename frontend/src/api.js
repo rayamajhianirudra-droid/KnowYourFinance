@@ -41,6 +41,33 @@ export async function signOutAccount() {
   if (!response.ok && response.status !== 401) throw new Error("Could not sign out. Try again.");
 }
 
+/** The account's recent sign-in attempts (successful and failed), newest first. */
+export async function getLoginHistory() {
+  const response = await apiFetch(`${API_BASE}/auth/login-history`);
+  if (!response.ok) throw new Error("Could not load your recent activity.");
+  return response.json();
+}
+
+/** The devices this account is currently signed in on, with the current one flagged. */
+export async function getSessions() {
+  const response = await apiFetch(`${API_BASE}/auth/sessions`);
+  if (!response.ok) throw new Error("Could not load your devices.");
+  return response.json();
+}
+
+/** Signs out one device by its opaque handle. */
+export async function endSession(handle) {
+  const response = await apiFetch(`${API_BASE}/auth/sessions/${encodeURIComponent(handle)}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 404) throw new Error("Could not sign out that device.");
+}
+
+/** Signs out every other device, keeping the current one. */
+export async function revokeOtherSessions() {
+  const response = await apiFetch(`${API_BASE}/auth/sessions/revoke-others`, { method: "POST" });
+  if (!response.ok) throw new Error("Could not sign out your other devices.");
+  return response.json();
+}
+
 /**
  * Uploads a statement CSV file. Returns the backend's
  * StatementImportResponse: how many rows were parsed/saved/redacted,
