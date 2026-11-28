@@ -33,6 +33,16 @@ public class BudgetController {
         Long userId = account.ownerId();
         return service.progress(userId, period(year, month));
     }
+    @PostMapping("/copy-previous-month")
+    public Map<String, Integer> copyPreviousMonth(@AuthenticationPrincipal AccountPrincipal account,
+                                                   @RequestParam int year, @RequestParam int month) {
+        YearMonth target = period(year, month);
+        if (target.equals(YearMonth.of(1900, 1))) {
+            throw new IllegalArgumentException("There is no supported budget month before January 1900.");
+        }
+        return Map.of("copied", service.copyPreviousMonth(account.ownerId(), target));
+    }
+
     @PutMapping("/{category}")
     public MonthlyBudget save(@AuthenticationPrincipal AccountPrincipal account, @RequestParam int year, @RequestParam int month,
             @PathVariable TransactionCategory category, @Valid @RequestBody BudgetRequest request) {

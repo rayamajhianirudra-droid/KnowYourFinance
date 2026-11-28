@@ -15,6 +15,18 @@ public interface MonthlyBudgetRepository extends JpaRepository<MonthlyBudget, Lo
     Optional<MonthlyBudget> findByUserIdAndMonthStartAndCategory(Long userId, LocalDate monthStart, TransactionCategory category);
     long countByUserId(Long userId);
 
+    @Modifying
+    @Query(value = """
+            INSERT INTO monthly_budgets (user_id, month_start, category, limit_amount)
+            SELECT user_id, :target, category, limit_amount
+            FROM monthly_budgets
+            WHERE user_id = :userId AND month_start = :source
+            ORDER BY category
+            ON CONFLICT (user_id, month_start, category) DO NOTHING
+            """, nativeQuery = true)
+    int copyMissingLimits(@Param("userId") Long userId, @Param("source") LocalDate source,
+                          @Param("target") LocalDate target);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM MonthlyBudget b WHERE b.userId = :userId")
     int deleteAllForUser(@Param("userId") Long userId);
