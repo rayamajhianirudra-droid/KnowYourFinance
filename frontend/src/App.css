@@ -2373,6 +2373,24 @@
   color: var(--color-text);
 }
 
+/* Devices and recent-activity lists in the Account activity dialog. */
+.activity-list {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.activity-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
 .merchant-rules summary {
   cursor: pointer;
   font-weight: 600;

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 
@@ -34,11 +35,14 @@ public class AuthController {
     private final CsrfTokenRepository csrfTokens;
     private final CredentialRateLimiter rateLimiter;
     private final DataResetService dataReset;
+    private final SessionTracker sessionTracker;
+    private final LoginEventService loginEvents;
     private final String dummyHash;
 
     AuthController(AccountRepository accounts, PasswordEncoder passwords, AccountRegistration registration,
                    HttpSessionSecurityContextRepository sessions, CsrfTokenRepository csrfTokens,
-                   CredentialRateLimiter rateLimiter, DataResetService dataReset) {
+                   CredentialRateLimiter rateLimiter, DataResetService dataReset,
+                   SessionTracker sessionTracker, LoginEventService loginEvents) {
         this.accounts = accounts;
         this.passwords = passwords;
         this.registration = registration;
@@ -46,6 +50,8 @@ public class AuthController {
         this.csrfTokens = csrfTokens;
         this.rateLimiter = rateLimiter;
         this.dataReset = dataReset;
+        this.sessionTracker = sessionTracker;
+        this.loginEvents = loginEvents;
         dummyHash = passwords.encode(java.util.UUID.randomUUID().toString());
     }
 
@@ -83,8 +89,15 @@ public class AuthController {
         Account account = accounts.findByEmail(credentials.normalizedEmail()).orElse(null);
         boolean valid = passwords.matches(credentials.password(), account == null ? dummyHash : account.passwordHash());
         if (!valid || account == null) {
+            // Record the failed attempt only when the email belongs to a real
+            // account, so the owner can see it and we never log arbitrary
+            // addresses that were simply typed wrong.
+            if (account != null) {
+                loginEvents.record(account.ownerId(), LoginEvent.Outcome.FAILURE, request);
+            }
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password.");
         }
+        loginEvents.record(account.ownerId(), LoginEvent.Outcome.SUCCESS, request);
         return authenticate(account, request, response);
     }
 
@@ -122,7 +135,61 @@ public class AuthController {
         context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of()));
         SecurityContextHolder.setContext(context);
         sessions.saveContext(context, request, response);
+        sessionTracker.register(account.ownerId(), request.getSession(),
+                request.getHeader("User-Agent"), request.getRemoteAddr());
         return new SessionView(account.email());
+    }
+
+    /**
+     * GET /api/auth/login-history - the signed-in account's recent sign-in
+     * attempts, successful and failed, newest first. Scoped to the account, so
+     * it can only ever show that account's own activity.
+     */
+    @GetMapping("/login-history")
+    public List<LoginEventView> loginHistory(@AuthenticationPrincipal AccountPrincipal principal) {
+        return loginEvents.recent(principal.ownerId()).stream()
+                .map(event -> new LoginEventView(event.getOutcome(), event.getOccurredAt(),
+                        event.getUserAgent(), event.getIpAddress()))
+                .toList();
+    }
+
+    /**
+     * GET /api/auth/sessions - the devices this account is currently signed in
+     * on, with the current one flagged. Only opaque handles are returned, never
+     * the real session ids.
+     */
+    @GetMapping("/sessions")
+    public List<SessionTracker.SessionSummary> sessions(@AuthenticationPrincipal AccountPrincipal principal,
+                                                        HttpServletRequest request) {
+        return sessionTracker.list(principal.ownerId(), currentSessionId(request));
+    }
+
+    /**
+     * DELETE /api/auth/sessions/{handle} - signs out one device by its handle.
+     * endSession only looks within this account's own sessions, so one account
+     * cannot end another's.
+     */
+    @DeleteMapping("/sessions/{handle}")
+    public ResponseEntity<Void> endSession(@AuthenticationPrincipal AccountPrincipal principal,
+                                           @PathVariable String handle) {
+        return sessionTracker.endSession(principal.ownerId(), handle)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
+    }
+
+    /**
+     * POST /api/auth/sessions/revoke-others - signs out every other device for
+     * this account, keeping the current one. Returns how many were ended.
+     */
+    @PostMapping("/sessions/revoke-others")
+    public RevokeResult revokeOtherSessions(@AuthenticationPrincipal AccountPrincipal principal,
+                                            HttpServletRequest request) {
+        return new RevokeResult(sessionTracker.endOtherSessions(principal.ownerId(), currentSessionId(request)));
+    }
+
+    private static String currentSessionId(HttpServletRequest request) {
+        var session = request.getSession(false);
+        return session == null ? null : session.getId();
     }
 
     private static void checkPasswordLength(String password) {
@@ -143,6 +210,10 @@ public class AuthController {
     }
 
     public record PasswordConfirmation(@NotBlank @Size(max = 72) String password) {}
+
+    public record LoginEventView(String outcome, Instant at, String device, String ipAddress) {}
+
+    public record RevokeResult(int signedOutOtherDevices) {}
 
     public record SessionView(String email) {}
 }

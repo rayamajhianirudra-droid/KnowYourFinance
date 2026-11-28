@@ -36,7 +36,7 @@ class AccountDeletionTest {
     void setUp() {
         controller = new AuthController(accounts, passwords, mock(AccountRegistration.class),
                 new HttpSessionSecurityContextRepository(), new HttpSessionCsrfTokenRepository(),
-                new CredentialRateLimiter(), dataReset);
+                new CredentialRateLimiter(), dataReset, mock(SessionTracker.class), mock(LoginEventService.class));
         account = new Account("student@example.test", passwords.encode("a long enough password"));
         ReflectionTestUtils.setField(account, "id", 7L);
         when(accounts.findByEmail("student@example.test")).thenReturn(Optional.of(account));

@@ -23,5 +23,7 @@ Run these with the app started by `docker compose up --build`, at http://localho
 | M-16 | Several statements at once | Choose 3 or more statement files together (for example a CSV, a TSV and an Excel file) and wait for the preview. | Each file is listed with its own transaction count and date range, and the totals add up across files. | |
 | M-17 | Twelve file limit | Choose 13 files at once. | Only the first 12 are used and a message says so. Nothing beyond 12 is uploaded. | Pass |
 | M-18 | One unsupported file | Include a PDF among your files. | The PDF is listed as failed with a clear message. The other files still import after you confirm. | Pass |
+| M-21 | Recent sign-in activity | Sign out, then sign in once with a wrong password and once correctly. Open Activity. | "Recent sign-in activity" lists both the failed and the successful attempt, each with a time and the device. | |
+| M-22 | Sign out another device | Sign in to the same account in a second browser. In the first, open Activity, find the other device under "Your devices" and choose Sign out (or "Sign out all other devices"). | The second browser is signed out on its next action and returns to sign-in; the current device stays signed in. | |
 
 Tester: AJ Rayamajhi  Date: 2026-11-15
