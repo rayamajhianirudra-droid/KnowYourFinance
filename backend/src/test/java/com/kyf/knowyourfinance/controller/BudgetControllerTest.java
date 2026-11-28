@@ -59,6 +59,20 @@ class BudgetControllerTest {
                 .andExpect(status().isOk());
         verify(service).save(eq(1L), eq(YearMonth.of(2026,11)), eq(TransactionCategory.DINING), eq(new java.math.BigDecimal("100.25")));
     }
+    @Test void clearsTheRequestedMonthForTheSignedInAccount() throws Exception {
+        String clearUrl = "/api/budgets?year=2026&month=11";
+        mvc.perform(delete(clearUrl)).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/budgets?year=2026&month=13").with(csrf()))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(service);
+
+        when(service.clearMonth(1L, YearMonth.of(2026, 11))).thenReturn(2, 0);
+        mvc.perform(delete(clearUrl).with(csrf()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.removed").value(2));
+        mvc.perform(delete(clearUrl).with(csrf()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.removed").value(0));
+    }
+
     @Test void deletionReturnsCorrectStatus() throws Exception {
         when(service.remove(1L, YearMonth.of(2026,11), TransactionCategory.DINING)).thenReturn(true, false);
         mvc.perform(delete(url).with(csrf())).andExpect(status().isNoContent());

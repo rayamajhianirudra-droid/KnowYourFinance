@@ -3,6 +3,7 @@ import PageHero from "./PageHero";
 import { getBudgets, saveBudget, removeBudget } from "../api";
 import { categoryLabel, formatCurrency } from "../utils/format";
 import { toLocalDateInput } from "../utils/dates";
+import { clearBudgetMonth } from "../api";
 
 const CATEGORIES = ["GROCERIES", "DINING", "RENT_MORTGAGE", "UTILITIES", "SUBSCRIPTIONS", "TRANSPORTATION", "SHOPPING", "ENTERTAINMENT", "HEALTHCARE", "EDUCATION", "TRAVEL", "TRANSFER", "OTHER"];
 const STATUS_LABELS = { ON_TRACK: "On track", WARNING: "Approaching limit", REACHED: "Limit reached", OVER: "Over budget" };
@@ -27,6 +28,7 @@ function BudgetMonth({ month, onMonth, refreshKey }) {
   const [message, setMessage] = useState("");
   const [reload, setReload] = useState(0);
   const [removing, setRemoving] = useState(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +63,20 @@ function BudgetMonth({ month, onMonth, refreshKey }) {
       await removeBudget(month, value);
       setRemoving(null);
       setMessage(`${categoryLabel(value)} budget removed. Your transactions are unchanged.`);
+      refresh();
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
+  async function handleClear() {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const { removed } = await clearBudgetMonth(month);
+      setConfirmingClear(false);
+      setRemoving(null);
+      setAmount("");
+      setMessage(removed ? `Cleared all budget limits for ${monthLabel}.`
+        : `There were no budget limits to clear for ${monthLabel}.`);
       refresh();
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
@@ -119,6 +135,16 @@ function BudgetMonth({ month, onMonth, refreshKey }) {
     </form>
 
     {!loading && !error && <section aria-label={`Category budgets for ${monthLabel}`}>
+      {budgets.length > 0 && <div className="panel budget-notice">
+        {confirmingClear ? <>
+          <p>Clear all budget limits for {monthLabel}? Your transactions and other months’ limits will stay in place.</p>
+          <button type="button" className="btn btn--danger" disabled={busy} onClick={handleClear}>Confirm clear all limits</button>
+          <button type="button" className="btn btn--text" disabled={busy} onClick={() => setConfirmingClear(false)}>Cancel</button>
+        </> : <button type="button" className="btn btn--text" disabled={busy} onClick={() => {
+          setRemoving(null);
+          setConfirmingClear(true);
+        }}>Clear all limits</button>}
+      </div>}
       {budgets.length === 0 ? <div className="panel budget-empty"><h2>Start with one category</h2><p className="muted">Set a limit for groceries, dining, or another category above. We’ll show a warning at 80% and tell you when you reach or exceed it.</p></div> :
         <div className="budget-grid">{budgets.map(b => <article key={b.category} className={`panel budget-card budget-card--${b.status.toLowerCase()}`}>
           <div className="budget-card__heading"><h2>{categoryLabel(b.category)}</h2><span className="budget-status">{STATUS_LABELS[b.status]}</span></div>
@@ -132,7 +158,7 @@ function BudgetMonth({ month, onMonth, refreshKey }) {
             {removing === b.category ? <>
               <span>Remove limit?</span><button className="btn btn--text" disabled={busy} onClick={() => handleRemove(b.category)} aria-label={`Confirm remove ${categoryLabel(b.category)} budget`}>Confirm</button>
               <button className="btn btn--text" disabled={busy} onClick={() => setRemoving(null)}>Cancel</button>
-            </> : <button className="btn btn--text" disabled={busy} onClick={() => setRemoving(b.category)} aria-label={`Remove ${categoryLabel(b.category)} budget`}>Remove</button>}
+            </> : <button className="btn btn--text" disabled={busy} onClick={() => { setConfirmingClear(false); setRemoving(b.category); }} aria-label={`Remove ${categoryLabel(b.category)} budget`}>Remove</button>}
           </div>
         </article>)}</div>}
     </section>}

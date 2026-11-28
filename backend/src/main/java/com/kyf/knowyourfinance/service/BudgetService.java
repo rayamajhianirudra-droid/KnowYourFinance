@@ -47,6 +47,11 @@ public class BudgetService {
     }
 
     @Transactional
+    public int clearMonth(Long userId, YearMonth month) {
+        return budgets.deleteLimitsForMonth(userId, month.atDay(1));
+    }
+
+    @Transactional
     public boolean remove(Long userId, YearMonth month, TransactionCategory category) {
         return budgets.findByUserIdAndMonthStartAndCategory(userId, month.atDay(1), category).map(budget -> {
             budgets.delete(budget);

@@ -18,4 +18,8 @@ public interface MonthlyBudgetRepository extends JpaRepository<MonthlyBudget, Lo
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM MonthlyBudget b WHERE b.userId = :userId")
     int deleteAllForUser(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("DELETE FROM MonthlyBudget b WHERE b.userId = :userId AND b.monthStart = :monthStart")
+    int deleteLimitsForMonth(@Param("userId") Long userId, @Param("monthStart") LocalDate monthStart);
 }
