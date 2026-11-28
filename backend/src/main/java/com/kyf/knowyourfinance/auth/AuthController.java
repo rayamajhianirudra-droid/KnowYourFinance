@@ -60,7 +60,7 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public SessionView signup(@Valid @RequestBody Credentials credentials,
+    public SignupView signup(@Valid @RequestBody Credentials credentials,
                               HttpServletRequest request, HttpServletResponse response) {
         rateLimiter.check(request.getRemoteAddr());
         checkPasswordLength(credentials.password());
@@ -69,7 +69,8 @@ public class AuthController {
         }
         try {
             Account account = registration.register(credentials.normalizedEmail(), credentials.password());
-            return authenticate(account, request, response);
+            String recoveryCode = issueRecoveryCode(account);
+            return new SignupView(authenticate(account, request, response).email(), recoveryCode);
         } catch (DataIntegrityViolationException duplicate) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Could not create this account.");
         }
@@ -113,6 +114,70 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Sets a new password for the signed-in account; the current password must be given. */
+    @PostMapping("/password")
+    public ResponseEntity<Void> changePassword(@AuthenticationPrincipal AccountPrincipal principal,
+                                               @Valid @RequestBody PasswordChange change,
+                                               HttpServletRequest request) {
+        rateLimiter.check(request.getRemoteAddr());
+        checkPasswordLength(change.currentPassword());
+        checkNewPassword(change.newPassword());
+        Account account = accounts.findByEmail(principal.email()).orElse(null);
+        if (account == null || !passwords.matches(change.currentPassword(), account.passwordHash())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your current password is not correct.");
+        }
+        account.changePassword(passwords.encode(change.newPassword()));
+        accounts.save(account);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Replaces the recovery code with a new one, shown once. The old code stops working. */
+    @PostMapping("/recovery-code")
+    public RecoveryView newRecoveryCode(@AuthenticationPrincipal AccountPrincipal principal,
+                                        @Valid @RequestBody PasswordConfirmation confirmation,
+                                        HttpServletRequest request) {
+        rateLimiter.check(request.getRemoteAddr());
+        checkPasswordLength(confirmation.password());
+        Account account = accounts.findByEmail(principal.email()).orElse(null);
+        if (account == null || !passwords.matches(confirmation.password(), account.passwordHash())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "That password is not correct.");
+        }
+        return new RecoveryView(issueRecoveryCode(account));
+    }
+
+    /**
+     * For someone who forgot their password: the email plus the recovery code
+     * saved at sign-up sets a new password. The code works once; a fresh one
+     * is returned to be saved. A wrong email and a wrong code look the same.
+     */
+    @PostMapping("/reset-password")
+    public RecoveryView resetPassword(@Valid @RequestBody PasswordReset reset, HttpServletRequest request) {
+        rateLimiter.check(request.getRemoteAddr());
+        checkNewPassword(reset.newPassword());
+        Account account = accounts.findByEmail(reset.normalizedEmail()).orElse(null);
+        String stored = account == null || account.recoveryHash() == null ? dummyHash : account.recoveryHash();
+        boolean valid = passwords.matches(RecoveryCodes.normalize(reset.recoveryCode()), stored);
+        if (!valid || account == null || account.recoveryHash() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "The email or recovery code is not correct.");
+        }
+        account.changePassword(passwords.encode(reset.newPassword()));
+        return new RecoveryView(issueRecoveryCode(account));
+    }
+
+    private String issueRecoveryCode(Account account) {
+        String code = RecoveryCodes.generate();
+        account.replaceRecoveryHash(passwords.encode(RecoveryCodes.normalize(code)));
+        accounts.save(account);
+        return code;
+    }
+
+    private static void checkNewPassword(String password) {
+        checkPasswordLength(password);
+        if (password.length() < 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use at least 12 characters.");
+        }
+    }
+
     private SessionView authenticate(Account account, HttpServletRequest request, HttpServletResponse response) {
         request.getSession();
         request.changeSessionId();
@@ -143,6 +208,21 @@ public class AuthController {
     }
 
     public record PasswordConfirmation(@NotBlank @Size(max = 72) String password) {}
+
+    public record PasswordChange(@NotBlank @Size(max = 72) String currentPassword,
+                                 @NotBlank @Size(max = 72) String newPassword) {}
+
+    public record PasswordReset(@NotBlank @Email @Size(max = 254) String email,
+                                @NotBlank @Size(max = 64) String recoveryCode,
+                                @NotBlank @Size(max = 72) String newPassword) {
+        String normalizedEmail() {
+            return email.strip().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    public record RecoveryView(String recoveryCode) {}
+
+    public record SignupView(String email, String recoveryCode) {}
 
     public record SessionView(String email) {}
 }

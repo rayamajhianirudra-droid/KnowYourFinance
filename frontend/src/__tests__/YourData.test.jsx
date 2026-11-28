@@ -6,6 +6,8 @@ import { useIdleSignOut } from "../utils/useIdleSignOut";
 
 const api = vi.hoisted(() => ({
   deleteAccount: vi.fn(),
+  changePassword: vi.fn(),
+  newRecoveryCode: vi.fn(),
   getProfile: vi.fn(),
   listGoals: vi.fn(),
   listRules: vi.fn(),
@@ -74,6 +76,39 @@ describe("YourData", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByText("That password is not correct.")).toBeTruthy();
     expect(onDeleted).not.toHaveBeenCalled();
+  });
+});
+
+describe("password and recovery", () => {
+  it("changes the password with the current one", async () => {
+    api.changePassword.mockResolvedValue(null);
+    render(<YourData email="a@b.test" onClose={() => {}} onDeleted={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Change my password" }));
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "the old password" } });
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "a brand new password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+    expect(await screen.findByText("Your password was changed.")).toBeTruthy();
+    expect(api.changePassword).toHaveBeenCalledWith("the old password", "a brand new password");
+  });
+
+  it("shows a new recovery code once and asks for it to be saved", async () => {
+    api.newRecoveryCode.mockResolvedValue({ recoveryCode: "AAAA-BBBB-CCCC-DDDD-EEEE" });
+    render(<YourData email="a@b.test" onClose={() => {}} onDeleted={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Get a new recovery code" }));
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "the old password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Make a new recovery code" }));
+    expect(await screen.findByText("AAAA-BBBB-CCCC-DDDD-EEEE")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Done" }).disabled).toBe(true);
+  });
+
+  it("shows the reason when the current password is wrong", async () => {
+    api.changePassword.mockRejectedValue(new Error("Your current password is not correct."));
+    render(<YourData email="a@b.test" onClose={() => {}} onDeleted={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Change my password" }));
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "nope" } });
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "a brand new password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+    expect(await screen.findByText("Your current password is not correct.")).toBeTruthy();
   });
 });
 

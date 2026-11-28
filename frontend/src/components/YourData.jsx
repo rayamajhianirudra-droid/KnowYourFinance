@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { deleteAccount, getProfile, listGoals, listRules, listTransactions } from "../api";
+import { changePassword, deleteAccount, getProfile, listGoals, listRules, listTransactions, newRecoveryCode } from "../api";
+import RecoveryCode from "./RecoveryCode";
 import { downloadTransactionsCsv } from "../utils/csvExport";
 import { buildExport, downloadJson } from "../utils/exportData";
 
@@ -13,6 +14,10 @@ export default function YourData({ email, onClose, onDeleted }) {
   const [error, setError] = useState(null);
   const [password, setPassword] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [section, setSection] = useState(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [freshCode, setFreshCode] = useState(null);
 
   useEffect(() => {
     function onKey(event) {
@@ -57,6 +62,40 @@ export default function YourData({ email, onClose, onDeleted }) {
     }
   }
 
+  async function handleChangePassword(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setSection(null);
+      setMessage("Your password was changed.");
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleNewCode(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await newRecoveryCode(currentPassword);
+      setCurrentPassword("");
+      setFreshCode(result.recoveryCode);
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDelete(event) {
     event.preventDefault();
     setBusy(true);
@@ -91,6 +130,47 @@ export default function YourData({ email, onClose, onDeleted }) {
 
         {message && <p role="status">{message}</p>}
         {error && <p role="alert">{error}</p>}
+
+        <hr />
+        <h3>Password and recovery</h3>
+        {freshCode ? (
+          <RecoveryCode email={email} code={freshCode} doneLabel="Done"
+            onDone={() => { setFreshCode(null); setSection(null); setMessage("Your new recovery code is active. The old one no longer works."); }} />
+        ) : section === "password" ? (
+          <form onSubmit={handleChangePassword} className="your-data__delete">
+            <label htmlFor="current-password">Current password</label>
+            <input id="current-password" type="password" autoComplete="current-password" maxLength={72} required
+              value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+            <label htmlFor="new-password">New password</label>
+            <input id="new-password" type="password" autoComplete="new-password" minLength={12} maxLength={72} required
+              value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+            <small>Use at least 12 characters, up to 72 bytes.</small>
+            <div className="your-data__actions">
+              <button type="submit" className="btn btn--primary" disabled={busy}>Change password</button>
+              <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => setSection(null)}>Cancel</button>
+            </div>
+          </form>
+        ) : section === "code" ? (
+          <form onSubmit={handleNewCode} className="your-data__delete">
+            <p>A new code replaces the old one, which will stop working. Enter your password to continue.</p>
+            <label htmlFor="code-password">Password</label>
+            <input id="code-password" type="password" autoComplete="current-password" maxLength={72} required
+              value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+            <div className="your-data__actions">
+              <button type="submit" className="btn btn--primary" disabled={busy}>Make a new recovery code</button>
+              <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => setSection(null)}>Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <div className="your-data__actions">
+            <button type="button" className="btn btn--secondary" onClick={() => { setError(null); setMessage(null); setSection("password"); }}>
+              Change my password
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={() => { setError(null); setMessage(null); setSection("code"); }}>
+              Get a new recovery code
+            </button>
+          </div>
+        )}
 
         <hr />
         {!confirming ? (
