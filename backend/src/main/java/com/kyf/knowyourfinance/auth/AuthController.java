@@ -2,6 +2,7 @@ package com.kyf.knowyourfinance.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -31,17 +32,19 @@ public class AuthController {
     private final HttpSessionSecurityContextRepository sessions;
     private final CsrfTokenRepository csrfTokens;
     private final CredentialRateLimiter rateLimiter;
+    private final SessionTracker sessionTracker;
     private final String dummyHash;
 
     AuthController(AccountRepository accounts, PasswordEncoder passwords, AccountRegistration registration,
                    HttpSessionSecurityContextRepository sessions, CsrfTokenRepository csrfTokens,
-                   CredentialRateLimiter rateLimiter) {
+                   CredentialRateLimiter rateLimiter, SessionTracker sessionTracker) {
         this.accounts = accounts;
         this.passwords = passwords;
         this.registration = registration;
         this.sessions = sessions;
         this.csrfTokens = csrfTokens;
         this.rateLimiter = rateLimiter;
+        this.sessionTracker = sessionTracker;
         dummyHash = passwords.encode(java.util.UUID.randomUUID().toString());
     }
 
@@ -93,7 +96,50 @@ public class AuthController {
         context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of()));
         SecurityContextHolder.setContext(context);
         sessions.saveContext(context, request, response);
+        sessionTracker.register(account.ownerId(), request.getSession());
         return new SessionView(account.email());
+    }
+
+    /**
+     * POST /api/auth/change-password - a signed-in account changes its own
+     * password. The current password must be supplied and must match: a
+     * walk-up to an unlocked browser cannot silently take the account over,
+     * and a hijacked session alone cannot lock the real owner out without
+     * knowing the existing password.
+     *
+     * On success every OTHER session for this account is ended server-side
+     * (see {@link SessionTracker}) - so changing the password on one device
+     * signs out the laptop left logged in elsewhere, which is the whole point
+     * of changing a password you fear someone else knows. The device that
+     * made the change stays signed in. The method is transactional so the
+     * pessimistic row lock from {@code lockByEmail} is held until the new
+     * hash is committed, serialising concurrent changes to the same account.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    @PostMapping("/change-password")
+    public PasswordChangeResult changePassword(@AuthenticationPrincipal AccountPrincipal principal,
+                                               @Valid @RequestBody PasswordChange change,
+                                               HttpServletRequest request) {
+        rateLimiter.check(request.getRemoteAddr());
+        checkPasswordLength(change.newPassword());
+        Account account = accounts.lockByEmail(principal.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sign in again."));
+        if (!passwords.matches(change.currentPassword(), account.passwordHash())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current password is incorrect.");
+        }
+        if (change.newPassword().length() < 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use at least 12 characters.");
+        }
+        if (passwords.matches(change.newPassword(), account.passwordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Choose a password different from your current one.");
+        }
+        account.changePassword(passwords.encode(change.newPassword()));
+        accounts.save(account);
+        HttpSession current = request.getSession();
+        sessionTracker.register(account.ownerId(), current);
+        int endedOthers = sessionTracker.endOtherSessions(account.ownerId(), current.getId());
+        return new PasswordChangeResult(endedOthers);
     }
 
     private static void checkPasswordLength(String password) {
@@ -114,4 +160,9 @@ public class AuthController {
     }
 
     public record SessionView(String email) {}
+
+    public record PasswordChange(@NotBlank @Size(max = 72) String currentPassword,
+                                 @NotBlank @Size(max = 72) String newPassword) {}
+
+    public record PasswordChangeResult(int signedOutOtherDevices) {}
 }

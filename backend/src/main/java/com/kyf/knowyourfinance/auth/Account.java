@@ -33,4 +33,13 @@ public class Account {
     String passwordHash() {
         return passwordHash;
     }
+
+    /**
+     * Replaces the stored BCrypt hash. The caller is responsible for having
+     * encoded the new password and for checking the current one first; this
+     * entity only holds the value.
+     */
+    void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
 }

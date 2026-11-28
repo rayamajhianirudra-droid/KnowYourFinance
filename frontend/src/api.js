@@ -42,6 +42,25 @@ export async function signOutAccount() {
 }
 
 /**
+ * Changes the signed-in account's password. The backend requires the current
+ * password, updates the stored hash, and ends this account's other sessions.
+ * Returns { signedOutOtherDevices } so the UI can say how many other devices
+ * were signed out.
+ */
+export async function changePassword(currentPassword, newPassword) {
+  const response = await apiFetch(`${API_BASE}/auth/change-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message || "Could not change your password. Try again.");
+  }
+  return response.json();
+}
+
+/**
  * Uploads a statement CSV file. Returns the backend's
  * StatementImportResponse: how many rows were parsed/saved/redacted,
  * plus the actual transactions that got created.

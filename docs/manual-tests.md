@@ -23,5 +23,7 @@ Run these with the app started by `docker compose up --build`, at http://localho
 | M-16 | Several statements at once | Choose 3 or more statement files together (for example a CSV, a TSV and an Excel file) and wait for the preview. | Each file is listed with its own transaction count and date range, and the totals add up across files. | |
 | M-17 | Twelve file limit | Choose 13 files at once. | Only the first 12 are used and a message says so. Nothing beyond 12 is uploaded. | Pass |
 | M-18 | One unsupported file | Include a PDF among your files. | The PDF is listed as failed with a clear message. The other files still import after you confirm. | Pass |
+| M-19 | Change your password | Open the profile menu and choose Change password. Enter your current password, a new password of at least 12 characters, and the confirmation. Submit. | The dialog confirms the change. Sign out, then sign in with the new password; the old password no longer works. | |
+| M-20 | A password change signs out other devices | Sign in to the same account in a second browser or a private window. In the first, change the password. In the second, reload or open any page. | The second browser is signed out and returns to the sign-in screen. The first stays signed in. The dialog in the first browser says one other device was signed out. | |
 
 Tester: AJ Rayamajhi  Date: 2026-11-15

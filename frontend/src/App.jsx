@@ -9,6 +9,7 @@ import ManualEntry from "./components/ManualEntry";
 import ProfileBadge from "./components/ProfileBadge";
 import ThemeToggle from "./components/ThemeToggle";
 import ResetDataDialog from "./components/ResetDataDialog";
+import AccountSettingsDialog from "./components/AccountSettingsDialog";
 import ReceiptScanner from "./components/ReceiptScanner";
 import { getProfile } from "./api";
 import { DashboardIcon, UploadIcon, PlusIcon, ListIcon, LockIcon, SavingsIcon } from "./components/Icons";
@@ -39,6 +40,7 @@ function FinanceApp({ signOut, pending, error }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [fullName, setFullName] = useState(null);
   const [resetOpen, setResetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [flash, setFlash] = useState(null);
 
@@ -150,7 +152,12 @@ function FinanceApp({ signOut, pending, error }) {
           </p>
 
           <ThemeToggle />
-          <ProfileBadge fullName={fullName} onSaved={setFullName} onDeleteData={() => setResetOpen(true)} />
+          <ProfileBadge
+            fullName={fullName}
+            onSaved={setFullName}
+            onDeleteData={() => setResetOpen(true)}
+            onChangePassword={() => setSettingsOpen(true)}
+          />
         </div>
         <div className="content-container account-actions">
           {error && <p role="alert">{error}</p>}
@@ -188,6 +195,10 @@ function FinanceApp({ signOut, pending, error }) {
 
       {scanOpen && (
         <ReceiptScanner onClose={() => setScanOpen(false)} onSaved={handleReceiptSaved} />
+      )}
+
+      {settingsOpen && (
+        <AccountSettingsDialog onClose={() => setSettingsOpen(false)} />
       )}
 
       {resetOpen && (

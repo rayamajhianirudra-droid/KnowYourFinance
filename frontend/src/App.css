@@ -2187,6 +2187,24 @@
   background: var(--color-danger-hover);
 }
 
+.profile__link {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-1) 0 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.profile__link:hover {
+  text-decoration: underline;
+}
+
 .profile__danger {
   display: block;
   width: 100%;
