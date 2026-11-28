@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import PageHero from "./PageHero";
-import { getBudgets, saveBudget, removeBudget } from "../api";
+import { copyPreviousMonthBudgets, getBudgets, saveBudget, removeBudget } from "../api";
 import { categoryLabel, formatCurrency } from "../utils/format";
 import { toLocalDateInput } from "../utils/dates";
 
@@ -55,6 +55,18 @@ function BudgetMonth({ month, onMonth, refreshKey }) {
     finally { setBusy(false); }
   }
 
+  async function handleCopy() {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const { copied } = await copyPreviousMonthBudgets(month);
+      setMessage(copied === 0 ? "There were no new limits to copy from the previous month."
+        : copied === 1 ? "Copied 1 budget limit from the previous month."
+        : `Copied ${copied} budget limits from the previous month.`);
+      refresh();
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
   async function handleRemove(value) {
     setBusy(true); setError(""); setMessage("");
     try {
@@ -80,6 +92,12 @@ function BudgetMonth({ month, onMonth, refreshKey }) {
         }} />
       </label>
       <p className="muted">Limits apply to this month only. Spending updates from your transactions.</p>
+      {month !== "1900-01" && <div>
+        <button type="button" className="btn btn--text" disabled={busy || loading || Boolean(error)} onClick={handleCopy}>
+          Copy last month’s limits
+        </button>
+        <p className="muted">Adds limits for categories without one this month.</p>
+      </div>}
     </div>
 
     {error && <div className="panel" role="alert"><p className="error">{error}</p>

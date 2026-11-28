@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Budgets from '../components/Budgets';
-import { getBudgets, saveBudget, removeBudget } from '../api';
-vi.mock('../api', () => ({ getBudgets: vi.fn(), saveBudget: vi.fn(), removeBudget: vi.fn() }));
+import { copyPreviousMonthBudgets, getBudgets, saveBudget, removeBudget } from '../api';
+vi.mock('../api', () => ({ copyPreviousMonthBudgets: vi.fn(), getBudgets: vi.fn(), saveBudget: vi.fn(), removeBudget: vi.fn() }));
 const dining = { category: 'DINING', limitAmount: 100, spent: 85, remaining: 15, percentUsed: 85, status: 'WARNING' };
 beforeEach(() => { vi.resetAllMocks(); getBudgets.mockResolvedValue([]); });
 afterEach(cleanup);
@@ -66,4 +66,17 @@ it('reloads after a load failure', async () => {
   fireEvent.click(screen.getByRole('button', { name:'Reload budgets' }));
   await screen.findByText('Start with one category');
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+it('copies limits into the selected month and refreshes its progress', async () => {
+  render(<Budgets refreshKey={0} />);
+  const month = '2027-01';
+  fireEvent.change(screen.getByLabelText('Budget month'), { target: { value: month } });
+  await screen.findByText('Start with one category');
+  copyPreviousMonthBudgets.mockResolvedValue({ copied: 1 });
+  getBudgets.mockResolvedValue([dining]);
+  fireEvent.click(screen.getByRole('button', { name: 'Copy last month’s limits' }));
+  expect(await screen.findByText('Copied 1 budget limit from the previous month.')).toBeTruthy();
+  expect(copyPreviousMonthBudgets).toHaveBeenCalledWith(month);
+  expect(await screen.findByRole('progressbar', { name: 'Dining budget used' })).toBeTruthy();
 });

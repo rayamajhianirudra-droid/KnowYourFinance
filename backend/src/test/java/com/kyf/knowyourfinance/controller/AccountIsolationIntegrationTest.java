@@ -165,6 +165,42 @@ class AccountIsolationIntegrationTest {
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
     }
 
+    @Test
+    void copiesPreviousBudgetLimitsAcrossYearsWithoutOverwritingOrSharing() throws Exception {
+        var first = credentials("signup", "budget-copy@example.test");
+        var second = credentials("signup", "budget-neighbor@example.test");
+        saveLimit(first, "DINING", 2026, 12, "125.50");
+        saveLimit(first, "GROCERIES", 2026, 12, "240.75");
+        saveLimit(first, "DINING", 2027, 1, "99.00");
+        saveLimit(second, "TRAVEL", 2026, 12, "300.00");
+
+        String copy = "/api/budgets/copy-previous-month?year=2027&month=1";
+        mvc.perform(post(copy).session(first)).andExpect(status().isForbidden());
+        mvc.perform(withCsrf(post(copy), first)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.copied").value(1));
+        mvc.perform(withCsrf(post(copy), first)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.copied").value(0));
+        mvc.perform(get("/api/budgets?year=2027&month=1").session(first))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(content().json("""
+                        [
+                          {"category":"DINING","limitAmount":99.00,"spent":0},
+                          {"category":"GROCERIES","limitAmount":240.75,"spent":0}
+                        ]
+                        """));
+        mvc.perform(get("/api/budgets?year=2027&month=1").session(second))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+    }
+
+    private void saveLimit(MockHttpSession session, String category, int year, int month, String amount)
+            throws Exception {
+        mvc.perform(withCsrf(put("/api/budgets/{category}", category)
+                        .param("year", Integer.toString(year)).param("month", Integer.toString(month)), session)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"limitAmount\":" + amount + "}"))
+                .andExpect(status().isOk());
+    }
+
     private MockHttpSession credentials(String action, String email) throws Exception {
         var session = new MockHttpSession();
         String preAuthId = session.getId();

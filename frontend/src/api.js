@@ -285,9 +285,9 @@ export async function saveProfile(fullName) {
 }
 
 // Budget limits are scoped to the same current user as transactions.
-function budgetUrl(month, category) {
+function budgetUrl(month, segment) {
   const [year, monthNumber] = month.split("-").map(Number);
-  return `${API_BASE}/budgets${category ? `/${encodeURIComponent(category)}` : ""}?year=${year}&month=${monthNumber}`;
+  return `${API_BASE}/budgets${segment ? `/${encodeURIComponent(segment)}` : ""}?year=${year}&month=${monthNumber}`;
 }
 async function budgetResponse(response) {
   if (!response.ok) {
@@ -298,6 +298,9 @@ async function budgetResponse(response) {
 }
 export async function getBudgets(month) {
   return budgetResponse(await apiFetch(budgetUrl(month)));
+}
+export async function copyPreviousMonthBudgets(month) {
+  return budgetResponse(await apiFetch(budgetUrl(month, "copy-previous-month"), { method: "POST" }));
 }
 export async function saveBudget(month, category, limitAmount) {
   return budgetResponse(await apiFetch(budgetUrl(month, category), {

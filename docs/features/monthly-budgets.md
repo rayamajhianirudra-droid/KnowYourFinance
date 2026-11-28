@@ -4,6 +4,8 @@ This optional enhancement adds the budget functionality deferred from the origin
 
 Open **Budgets**, choose a month, select a spending category and save a positive USD limit. Each category can have one limit per month. Choose **Edit limit** to change it. **Remove** asks for confirmation and removes only the limit, never transactions.
 
+Use **Copy last month’s limits** to fill in missing categories from the immediately preceding calendar month. The action keeps limits already saved for the selected month and uses that month’s own transactions to calculate progress. You can repeat it safely.
+
 ## Spending and alerts
 
 - Only `EXPENSE` transactions in the selected calendar month and user count, including imported and manually entered records. Uncategorized expenses count as Other. Income is excluded.
@@ -15,13 +17,15 @@ Open **Budgets**, choose a month, select a spending category and save a positive
 
 ## API
 
-All endpoints follow the existing placeholder `userId` convention; the application still has no authentication. The frontend uses user 1.
+All endpoints use the signed-in account. Write requests require a session CSRF token.
 
-- `GET /api/budgets?userId=1&year=2026&month=11`: category, limitAmount, spent, remaining, percentUsed and status for each saved limit.
-- `PUT /api/budgets/DINING?userId=1&year=2026&month=11` with JSON `{"limitAmount": 300.00}` creates or updates that category's limit.
-- `DELETE /api/budgets/DINING?userId=1&year=2026&month=11` removes that limit (204; 404 when absent).
+- `GET /api/budgets?year=2026&month=11`: category, limitAmount, spent, remaining, percentUsed and status for each saved limit.
+- `PUT /api/budgets/DINING?year=2026&month=11` with JSON `{"limitAmount": 300.00}` creates or updates that category's limit.
+- `DELETE /api/budgets/DINING?year=2026&month=11` removes that limit (204; 404 when absent).
 
-Validation rejects non-positive limits, more than two decimal places, more than nine integer digits, Income categories, invalid users and invalid months. Years 1900–9999 are accepted. Duplicate simultaneous creates return a reload-and-retry conflict rather than creating duplicate budgets.
+- `POST /api/budgets/copy-previous-month?year=2027&month=1` returns `{"copied": 2}` when it adds two limits from December 2026. A retry returns zero if those limits already exist. January 1900 has no supported source month.
+
+Validation rejects non-positive limits, more than two decimal places, more than nine integer digits, Income categories, invalid months. Years 1900–9999 are accepted. Duplicate simultaneous creates return a reload-and-retry conflict rather than creating duplicate budgets.
 
 ## Storage and review
 

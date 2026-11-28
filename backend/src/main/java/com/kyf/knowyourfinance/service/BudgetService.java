@@ -39,6 +39,11 @@ public class BudgetService {
     }
 
     @Transactional
+    public int copyPreviousMonth(Long userId, YearMonth month) {
+        return budgets.copyMissingLimits(userId, month.minusMonths(1).atDay(1), month.atDay(1));
+    }
+
+    @Transactional
     public MonthlyBudget save(Long userId, YearMonth month, TransactionCategory category, BigDecimal amount) {
         MonthlyBudget budget = budgets.findByUserIdAndMonthStartAndCategory(userId, month.atDay(1), category)
                 .orElseGet(() -> new MonthlyBudget(userId, month.atDay(1), category, amount));
