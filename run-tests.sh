@@ -5,7 +5,7 @@
 #    integration and performance tests. The database integration tests
 #    start a throwaway PostgreSQL, so Docker must be running. They are
 #    skipped, not failed, if Docker is not available.
-# 2. Frontend: lints (static analysis) and runs all unit tests.
+# 2. Frontend: installs locked dependencies, lints, runs tests and builds for production.
 #
 # Needs Java 21, Maven and Node 22. Stops at the first failure.
 set -euo pipefail
@@ -19,5 +19,8 @@ echo "== Frontend: lint =="
 
 echo "== Frontend: tests =="
 (cd frontend && npm test)
+
+echo "== Frontend: production build =="
+(cd frontend && npm run build)
 
 echo "All checks passed."

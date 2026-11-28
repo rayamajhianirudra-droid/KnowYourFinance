@@ -11,7 +11,7 @@ Most budgeting apps ask for your bank login and keep a standing connection to yo
 ## Project structure
 
 ```
-backend/    Spring Boot 3.3.4 / Java 21 REST API
+backend/    Spring Boot 3.5 / Java 21 REST API
 frontend/   React (Vite) UI
 docs/       build-log/ — plain-language documentation of every decision made, in build order
 ```
@@ -56,8 +56,8 @@ One command runs everything (needs Java 21, Maven, Node 22, and Docker for the d
 Or run the two halves separately:
 
 ```bash
-cd backend  && mvn verify                       # 96 tests; the integration test needs Docker
-cd frontend && npm run lint && npm test         # lint, then 48 tests
+(cd backend && mvn -B verify)
+(cd frontend && npm ci && npm run lint && npm test && npm run build)
 ```
 
 The manual test checklist is in [docs/manual-tests.md](docs/manual-tests.md).
@@ -92,7 +92,7 @@ This is a COMP 425 (Software Engineering) semester project at SMSU, following a 
 
 ## Status
 
-Milestone 4 adds Docker, a build and publish pipeline, faster imports and trends, and a larger test suite (see [build log 19](docs/build-log/19-milestone-4-docker-ci-and-efficiency.md) and the [Milestone 4 test report](docs/testing/milestone-4-test-report.md)). There is no authentication yet: accounts are out of scope in the requirements specification. See each build-log entry's "what's intentionally missing" section for the full honest list.
+Milestone 4 added Docker, a build and publish pipeline, faster imports and trends, and a larger test suite. See [build log 19](docs/build-log/19-milestone-4-docker-ci-and-efficiency.md) and the [Milestone 4 test report](docs/testing/milestone-4-test-report.md). KYF now supports sign-up and sign-in with account-scoped financial data. See [Accounts and the existing database](#accounts-and-the-existing-database) for setup and legacy data handling.
 
 ## Monthly category budgets
 
