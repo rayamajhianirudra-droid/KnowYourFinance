@@ -33,11 +33,13 @@ public class AuthController {
     private final CsrfTokenRepository csrfTokens;
     private final CredentialRateLimiter rateLimiter;
     private final SessionTracker sessionTracker;
+    private final PasswordResetService passwordReset;
     private final String dummyHash;
 
     AuthController(AccountRepository accounts, PasswordEncoder passwords, AccountRegistration registration,
                    HttpSessionSecurityContextRepository sessions, CsrfTokenRepository csrfTokens,
-                   CredentialRateLimiter rateLimiter, SessionTracker sessionTracker) {
+                   CredentialRateLimiter rateLimiter, SessionTracker sessionTracker,
+                   PasswordResetService passwordReset) {
         this.accounts = accounts;
         this.passwords = passwords;
         this.registration = registration;
@@ -45,6 +47,7 @@ public class AuthController {
         this.csrfTokens = csrfTokens;
         this.rateLimiter = rateLimiter;
         this.sessionTracker = sessionTracker;
+        this.passwordReset = passwordReset;
         dummyHash = passwords.encode(java.util.UUID.randomUUID().toString());
     }
 
@@ -142,6 +145,43 @@ public class AuthController {
         return new PasswordChangeResult(endedOthers);
     }
 
+    /**
+     * POST /api/auth/forgot-password - starts a reset for the given email by
+     * sending a one-time link. It always answers the same way whether or not
+     * the email has an account, so it cannot be used to find out which emails
+     * are registered. Rate limited per address.
+     */
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @PostMapping("/forgot-password")
+    public MessageResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                          HttpServletRequest http) {
+        rateLimiter.check(http.getRemoteAddr());
+        passwordReset.requestReset(request.normalizedEmail());
+        return new MessageResponse("If that email has an account, a reset link is on its way.");
+    }
+
+    /**
+     * POST /api/auth/reset-password - sets a new password using a one-time
+     * token from the emailed link. The new password is validated the same way
+     * as at sign-up. A missing, expired, or already-used token is refused with
+     * a generic message, and the token is never echoed back. A successful reset
+     * ends every session the account had open.
+     */
+    @PostMapping("/reset-password")
+    public MessageResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request,
+                                         HttpServletRequest http) {
+        rateLimiter.check(http.getRemoteAddr());
+        checkPasswordLength(request.newPassword());
+        if (request.newPassword().length() < 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use at least 12 characters.");
+        }
+        if (!passwordReset.resetPassword(request.token(), request.newPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This reset link is invalid or has expired. Request a new one.");
+        }
+        return new MessageResponse("Your password has been reset. You can sign in now.");
+    }
+
     private static void checkPasswordLength(String password) {
         if (password.getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password exceeds 72 UTF-8 bytes.");
@@ -165,4 +205,19 @@ public class AuthController {
                                  @NotBlank @Size(max = 72) String newPassword) {}
 
     public record PasswordChangeResult(int signedOutOtherDevices) {}
+
+    public record ForgotPasswordRequest(@NotBlank @Email @Size(max = 254) String email) {
+        public ForgotPasswordRequest {
+            if (email != null) email = email.strip();
+        }
+
+        String normalizedEmail() {
+            return email.toLowerCase(Locale.ROOT);
+        }
+    }
+
+    public record ResetPasswordRequest(@NotBlank @Size(max = 512) String token,
+                                       @NotBlank @Size(max = 72) String newPassword) {}
+
+    public record MessageResponse(String message) {}
 }

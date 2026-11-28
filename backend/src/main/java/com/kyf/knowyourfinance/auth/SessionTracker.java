@@ -68,6 +68,15 @@ public class SessionTracker implements HttpSessionListener {
         return ended;
     }
 
+    /**
+     * Ends every session for this account, keeping none. Used after a password
+     * reset, where the person is not signed in on the device completing the
+     * reset, so any existing session (including an attacker's) must go.
+     */
+    int endAllSessions(Long ownerId) {
+        return endOtherSessions(ownerId, null);
+    }
+
     /** How many sessions this account currently has open. */
     int sessionCount(Long ownerId) {
         Map<String, HttpSession> sessions = byOwner.get(ownerId);

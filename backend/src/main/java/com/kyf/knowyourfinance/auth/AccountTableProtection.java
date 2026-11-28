@@ -18,6 +18,7 @@ public class AccountTableProtection implements ApplicationRunner {
         // Hosted databases may grant new public tables to browser-facing roles.
         // The owner used by this backend can still read and write credentials.
         database.execute("ALTER TABLE kyf_accounts ENABLE ROW LEVEL SECURITY");
+        database.execute("ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY");
         database.execute("ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY");
         database.execute("ALTER TABLE subscription_decisions ENABLE ROW LEVEL SECURITY");
         database.execute("ALTER TABLE category_rules ENABLE ROW LEVEL SECURITY");

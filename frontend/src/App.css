@@ -2205,6 +2205,24 @@
   text-decoration: underline;
 }
 
+/* A quiet text link under the sign-in form, for "Forgot password?". */
+.account-link {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: var(--space-1) 0 0;
+}
+.account-link:hover {
+  opacity: 0.8;
+}
+.account-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .profile__danger {
   display: block;
   width: 100%;

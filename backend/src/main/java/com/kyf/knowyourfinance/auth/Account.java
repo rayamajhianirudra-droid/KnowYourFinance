@@ -26,6 +26,10 @@ public class Account {
         return -id;
     }
 
+    Long id() {
+        return id;
+    }
+
     String email() {
         return email;
     }

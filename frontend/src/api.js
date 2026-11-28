@@ -61,6 +61,42 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 /**
+ * Starts a password reset for an email. The backend answers the same way
+ * whether or not the email has an account, so this never reveals which emails
+ * are registered. Returns the server's generic message.
+ */
+export async function requestPasswordReset(email) {
+  const response = await apiFetch(`${API_BASE}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  }, { notifyExpiry: false });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message || "Could not start a password reset. Try again.");
+  }
+  return response.json();
+}
+
+/**
+ * Completes a password reset with the one-time token from the emailed link and
+ * a new password. Throws with the server's message if the link is invalid or
+ * expired, or the password is rejected.
+ */
+export async function resetPassword(token, newPassword) {
+  const response = await apiFetch(`${API_BASE}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword }),
+  }, { notifyExpiry: false });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message || "Could not reset your password. Try again.");
+  }
+  return response.json();
+}
+
+/**
  * Uploads a statement CSV file. Returns the backend's
  * StatementImportResponse: how many rows were parsed/saved/redacted,
  * plus the actual transactions that got created.
