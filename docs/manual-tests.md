@@ -23,5 +23,7 @@ Run these with the app started by `docker compose up --build`, at http://localho
 | M-16 | Several statements at once | Choose 3 or more statement files together (for example a CSV, a TSV and an Excel file) and wait for the preview. | Each file is listed with its own transaction count and date range, and the totals add up across files. | |
 | M-17 | Twelve file limit | Choose 13 files at once. | Only the first 12 are used and a message says so. Nothing beyond 12 is uploaded. | Pass |
 | M-18 | One unsupported file | Include a PDF among your files. | The PDF is listed as failed with a clear message. The other files still import after you confirm. | Pass |
+| M-19 | New account asks to verify its email | Create a new account. With Docker running, open http://localhost:8025 (Mailpit). | A reminder to confirm the email appears at the top of the app, but the app still works. A verification email appears in Mailpit. | |
+| M-20 | Verify the email from the link | Open the verification link from M-19. | A "Your email is verified" screen appears; after continuing, the reminder is gone. Reusing the same link says it is no longer valid. | |
 
 Tester: AJ Rayamajhi  Date: 2026-11-15

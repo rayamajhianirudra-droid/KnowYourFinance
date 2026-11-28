@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
 import { accountCredentials, getAccountSession, signOutAccount } from "../api";
+import VerifyEmailScreen from "./VerifyEmailScreen";
+
+// A verification link looks like /verify-email?token=... . Read the token once
+// so the screen can be shown whether or not anyone is signed in.
+function readVerifyToken() {
+  try {
+    const url = new URL(window.location.href);
+    if (url.pathname === "/verify-email") return url.searchParams.get("token");
+  } catch {
+    // window.location may be unavailable in some environments; ignore.
+  }
+  return null;
+}
 
 export default function AccountGate({ children }) {
   const [account, setAccount] = useState(undefined);
@@ -8,6 +21,7 @@ export default function AccountGate({ children }) {
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [verifyToken, setVerifyToken] = useState(() => readVerifyToken());
 
   useEffect(() => {
     let active = true;
@@ -54,6 +68,20 @@ export default function AccountGate({ children }) {
     } finally {
       setPending(false);
     }
+  }
+
+  // Someone arriving from the emailed verification link, signed in or not.
+  if (verifyToken) {
+    return (
+      <VerifyEmailScreen
+        token={verifyToken}
+        onDone={() => {
+          try { window.history.replaceState({}, "", "/"); } catch { /* ignore */ }
+          setVerifyToken(null);
+          setRetry((value) => value + 1); // re-check the session so the reminder clears
+        }}
+      />
+    );
   }
 
   if (account) return children({ account, signOut, pending, error });

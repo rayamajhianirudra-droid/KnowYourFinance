@@ -34,9 +34,19 @@ services:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://db:5432/${POSTGRES_DB:-kyf}}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-${POSTGRES_USER:-kyf}}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-${POSTGRES_PASSWORD}}
+      # Email verification. In Compose these point at the local Mailpit
+      # container; in production set SPRING_MAIL_* to a real SMTP server.
+      # KYF_APP_URL must be the address a browser reaches the app at, so the
+      # emailed verification link works - that is the port the frontend is on.
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-mailpit}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
+      KYF_MAIL_FROM: ${KYF_MAIL_FROM:-no-reply@knowyourfinance.local}
+      KYF_APP_URL: ${KYF_APP_URL:-http://localhost:${KYF_PORT:-3000}}
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     restart: unless-stopped
 
   frontend:
@@ -46,6 +56,16 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
+
+  # Mailpit catches verification emails in development so they never leave the
+  # machine. SMTP is on 1025 (what the backend sends to); the web inbox is on
+  # 8025, published on KYF_MAILPIT_PORT (open http://localhost:8025 to read the
+  # link). In production, point SPRING_MAIL_* at a real SMTP server instead.
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    ports:
+      - "${KYF_MAILPIT_PORT:-8025}:8025"
     restart: unless-stopped
 
 volumes:
