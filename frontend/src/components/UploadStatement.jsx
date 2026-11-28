@@ -6,6 +6,7 @@ import { uploadStatements, listTransactions, deleteTransaction, MAX_UPLOAD_FILES
 import { importedIds, rememberImport, lastImport, forgetImport } from "../utils/lastImport";
 import { formatCurrency } from "../utils/format";
 import { summarizeBatch } from "../utils/uploadSummary";
+import { flipStatementSigns, looksInverted } from "../utils/flipSigns";
 import { UploadIcon, LockIcon, CheckCircleIcon, AlertIcon } from "./Icons";
 
 // STAGES this component moves through:
@@ -118,6 +119,16 @@ function UploadStatement({ onImported }) {
       setError(err.message);
       setStage("error");
     }
+  }
+
+  async function handleFlip() {
+    const flipped = await Promise.all(files.map((file) => flipStatementSigns(file)));
+    if (flipped.some((file) => file === null)) {
+      setNotice("These files can't be flipped here. Spreadsheet files and statements with separate debit and credit columns need to be fixed in the bank's export.");
+      return;
+    }
+    await handleFiles(flipped);
+    setNotice("Income and expenses were swapped in your copy. Your original files were not changed.");
   }
 
   async function handleUndo() {
@@ -290,6 +301,18 @@ function UploadStatement({ onImported }) {
           {notice && <p className="upload-notice" role="status">{notice}</p>}
 
           <FileResults files={preview.files} doneLabel="Found" />
+
+          {looksInverted(preview) && (
+            <div className="upload-warning" role="status">
+              <p>
+                Almost everything was read as income. Some credit card statements list purchases as
+                positive numbers. If these are purchases, swap them so they count as spending.
+              </p>
+              <button type="button" className="btn btn--secondary" onClick={handleFlip}>
+                Swap income and expenses
+              </button>
+            </div>
+          )}
 
           <dl className="summary-grid">
             <div>
