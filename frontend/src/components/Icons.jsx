@@ -208,3 +208,33 @@ export function XIcon(props) {
     </svg>
   );
 }
+
+export function SplitIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M10 3v5" />
+      <path d="M10 8L5 12.5V17" />
+      <path d="M10 8l5 4.5V17" />
+    </svg>
+  );
+}
+
+export function JoinIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 3v4.5L10 12" />
+      <path d="M15 3v4.5L10 12" />
+      <path d="M10 12v5" />
+    </svg>
+  );
+}
+
+export function ReceiptIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 2.5h10v15l-2-1.2-1.7 1.2-1.3-1.2-1.3 1.2L7 16.3 5 17.5z" />
+      <path d="M7.5 7h5" />
+      <path d="M7.5 10h5" />
+    </svg>
+  );
+}

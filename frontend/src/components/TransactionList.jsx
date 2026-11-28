@@ -1,16 +1,15 @@
 import PageHero from "./PageHero";
 import { useEffect, useMemo, useState } from "react";
-import { listTransactions, updateTransaction, deleteTransaction } from "../api";
-import { formatCurrency, categoryLabel } from "../utils/format";
+import { listTransactions, updateTransaction, deleteTransaction, joinSplit, listRules, saveRule, deleteRule } from "../api";
+import { formatCurrency, categoryLabel, CATEGORIES } from "../utils/format";
 import { downloadTransactionsCsv } from "../utils/csvExport";
-import { SearchIcon, ArrowUpIcon, ArrowDownIcon, EditIcon, TrashIcon, CheckCircleIcon, XIcon } from "./Icons";
+import { SearchIcon, ArrowUpIcon, ArrowDownIcon, EditIcon, TrashIcon, CheckCircleIcon, XIcon, SplitIcon, JoinIcon } from "./Icons";
+import SplitDialog from "./SplitDialog";
+import MerchantRules from "./MerchantRules";
+import RuleOffer from "./RuleOffer";
+import ReceiptScanner from "./ReceiptScanner";
+import { countOthers, isMixedStore, suggestPattern } from "../utils/merchant";
 import EmptyState from "./EmptyState";
-
-const CATEGORIES = [
-  "GROCERIES", "DINING", "RENT_MORTGAGE", "UTILITIES", "SUBSCRIPTIONS",
-  "TRANSPORTATION", "SHOPPING", "ENTERTAINMENT", "HEALTHCARE", "EDUCATION",
-  "TRAVEL", "INCOME", "TRANSFER", "OTHER",
-];
 
 const TYPE_FILTERS = [
   { id: "ALL", label: "All" },
@@ -55,6 +54,21 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
   const [deletingId, setDeletingId] = useState(null);
   const [deleteBusyId, setDeleteBusyId] = useState(null);
 
+  // Splitting one receipt into several category lines. splitting holds
+  // the transaction whose dialog is open; joiningId the group being merged.
+  const [splitting, setSplitting] = useState(null);
+  const [joiningId, setJoiningId] = useState(null);
+
+  // Merchant rules: after a category is changed by hand the app offers to
+  // remember it. offer holds the suggestion, rules the saved list.
+  const [rules, setRules] = useState([]);
+  const [offer, setOffer] = useState(null);
+  const [offerBusy, setOfferBusy] = useState(false);
+  const [offerError, setOfferError] = useState(null);
+  const [ruleBusyId, setRuleBusyId] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [scanning, setScanning] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     listTransactions()
@@ -62,6 +76,71 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [refreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(listRules())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data)) setRules(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  function maybeOfferRule(updated) {
+    if (updated.splitGroup) return;
+    const pattern = suggestPattern(updated.description);
+    if (!pattern) return;
+    const known = rules.find((r) => r.pattern === pattern && r.category === updated.category);
+    if (known) return;
+    setOfferError(null);
+    setNotice(null);
+    setOffer({ pattern, category: updated.category, sourceId: updated.id });
+  }
+
+  async function acceptOffer(applyToExisting) {
+    setOfferBusy(true);
+    setOfferError(null);
+    try {
+      const result = await saveRule({
+        pattern: offer.pattern,
+        category: offer.category,
+        applyToExisting,
+      });
+      setRules((prev) => {
+        const rest = prev.filter((r) => r.id !== result.rule.id && r.pattern !== result.rule.pattern);
+        return [...rest, result.rule].sort((a, b) => a.pattern.localeCompare(b.pattern));
+      });
+      if (result.updated > 0) {
+        const fresh = await listTransactions();
+        setTransactions(fresh);
+      }
+      setNotice(
+        result.updated > 0
+          ? `Remembered. ${result.updated} other transaction${result.updated === 1 ? "" : "s"} moved to ${categoryLabel(offer.category)}.`
+          : "Remembered. Future uploads will use it."
+      );
+      setOffer(null);
+    } catch (err) {
+      setOfferError(err.message);
+    } finally {
+      setOfferBusy(false);
+    }
+  }
+
+  async function removeRule(rule) {
+    setRuleBusyId(rule.id);
+    try {
+      await deleteRule(rule.id);
+      setRules((prev) => prev.filter((r) => r.id !== rule.id));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRuleBusyId(null);
+    }
+  }
 
   async function handleCategoryChange(transaction, newCategory) {
     setSavingId(transaction.id);
@@ -73,6 +152,7 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       setTransactions((prev) =>
         prev.map((t) => (t.id === updated.id ? updated : t))
       );
+      maybeOfferRule(updated);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -129,6 +209,40 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
       setError(err.message);
     } finally {
       setDeleteBusyId(null);
+    }
+  }
+
+  function handleSplitDone(originalId, created) {
+    setTransactions((prev) => [
+      ...prev.filter((row) => row.id !== originalId && !created.some((c) => c.id === row.id)),
+      ...created,
+    ]);
+    setSplitting(null);
+  }
+
+  async function handleJoin(t) {
+    setJoiningId(t.id);
+    try {
+      const joined = await joinSplit(t.id);
+      setTransactions((prev) =>
+        prev
+          .filter((row) => row.id === joined.id || row.splitGroup !== t.splitGroup)
+          .map((row) => (row.id === joined.id ? joined : row))
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setJoiningId(null);
+    }
+  }
+
+  async function handleReceiptSaved(message) {
+    setScanning(false);
+    setNotice(message);
+    try {
+      setTransactions(await listTransactions());
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -266,6 +380,10 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
           Export CSV
         </button>
 
+        <button type="button" className="btn btn--secondary" onClick={() => setScanning(true)}>
+          Scan receipt
+        </button>
+
         {hasActiveFilters && (
           <button
             type="button"
@@ -282,6 +400,21 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
         <p id="transaction-date-error" className="error" role="alert">
           The From date must be on or before the To date.
         </p>
+      )}
+
+      {offer && (
+        <RuleOffer
+          offer={offer}
+          matches={(pattern) => countOthers(transactions, pattern, offer.category, offer.sourceId)}
+          busy={offerBusy}
+          error={offerError}
+          onPatternChange={(pattern) => setOffer((o) => ({ ...o, pattern }))}
+          onAccept={acceptOffer}
+          onDismiss={() => setOffer(null)}
+        />
+      )}
+      {notice && !offer && (
+        <p className="notice" role="status">{notice}</p>
       )}
 
       {loading && (
@@ -410,7 +543,27 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
                 return (
                   <tr key={t.id}>
                     <td className="cell-date" data-label="Date">{t.date}</td>
-                    <td className="cell-description" data-label="Description">{t.description}</td>
+                    <td className="cell-description" data-label="Description">
+                      {t.description}
+                      {!t.splitGroup && t.type === "EXPENSE" && isMixedStore(t.description) && (
+                        <button
+                          type="button"
+                          className="split-hint"
+                          onClick={() => setSplitting(t)}
+                          title="Stores like this often sell food and other things in one purchase"
+                        >
+                          Mixed receipt? Split it
+                        </button>
+                      )}
+                      {t.splitGroup && (
+                        <span
+                          className="split-badge"
+                          title={`Part of a split receipt. Original charge ${formatCurrency(t.splitSourceAmount)}.`}
+                        >
+                          split
+                        </span>
+                      )}
+                    </td>
                     <td>
                       <select
                         className="category-select"
@@ -467,6 +620,28 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
                         </div>
                       ) : (
                         <div className="row-actions">
+                          {t.splitGroup ? (
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => handleJoin(t)}
+                              disabled={joiningId === t.id}
+                              aria-label={`Join split receipt ${t.description}`}
+                              title="Join the split lines back into one transaction"
+                            >
+                              <JoinIcon width={16} height={16} aria-hidden="true" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => setSplitting(t)}
+                              aria-label={`Split ${t.description}`}
+                              title="Split into several categories"
+                            >
+                              <SplitIcon width={16} height={16} aria-hidden="true" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="icon-btn"
@@ -497,6 +672,26 @@ function TransactionList({ refreshKey, onUploadClick, onAddClick }) {
             Showing {filtered.length} of {transactions.length} transaction{transactions.length === 1 ? "" : "s"}.
           </p>
         </div>
+      )}
+
+      {!loading && (
+        <MerchantRules rules={rules} onRemove={removeRule} busyId={ruleBusyId} />
+      )}
+
+      {scanning && (
+        <ReceiptScanner
+          transactions={transactions}
+          onClose={() => setScanning(false)}
+          onSaved={handleReceiptSaved}
+        />
+      )}
+
+      {splitting && (
+        <SplitDialog
+          transaction={splitting}
+          onClose={() => setSplitting(null)}
+          onSplit={handleSplitDone}
+        />
       )}
     </div>
   );

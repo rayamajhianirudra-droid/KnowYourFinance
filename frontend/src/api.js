@@ -212,6 +212,36 @@ export async function deleteTransaction(id) {
 }
 
 /**
+ * Divides one transaction into several category lines (a Walmart receipt
+ * with food and a TV, say). parts is [{ amount, category, label }] and the
+ * amounts have to add up to the original total. Resolves to the new lines.
+ */
+export async function splitTransaction(id, parts) {
+  const response = await apiFetch(`${API_BASE}/transactions/${id}/split`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ parts }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Failed to split transaction (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Puts a split receipt back together as one transaction. */
+export async function joinSplit(id) {
+  const response = await apiFetch(`${API_BASE}/transactions/${id}/split`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Failed to join transaction (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
  * Lists every transaction for the current user, most recent logic
  * left to the backend/display layer (the API itself doesn't sort).
  */
@@ -331,3 +361,38 @@ export const removeGoal = (id) => planningRequest(`goals/${encodeURIComponent(id
 export const listSubscriptionDecisions = () => planningRequest("subscriptions");
 export const saveSubscriptionDecision = (merchantKey, status) =>
   planningRequest("subscriptions", "PUT", { merchantKey, status });
+
+/** Lists the "always put this merchant in that category" rules. */
+export async function listRules() {
+  const response = await apiFetch(`${API_BASE}/rules`);
+  if (!response.ok) {
+    throw new Error(`Failed to load rules (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Remembers a merchant. With applyToExisting the rule also fixes the
+ * transactions already stored. Resolves to { rule, updated }.
+ */
+export async function saveRule({ pattern, category, applyToExisting }) {
+  const response = await apiFetch(`${API_BASE}/rules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pattern, category, applyToExisting: Boolean(applyToExisting) }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Failed to save rule (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteRule(id) {
+  const response = await apiFetch(`${API_BASE}/rules/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove rule (${response.status})`);
+  }
+}

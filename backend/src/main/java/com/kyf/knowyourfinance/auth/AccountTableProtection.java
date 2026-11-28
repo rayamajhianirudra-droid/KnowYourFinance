@@ -20,5 +20,6 @@ public class AccountTableProtection implements ApplicationRunner {
         database.execute("ALTER TABLE kyf_accounts ENABLE ROW LEVEL SECURITY");
         database.execute("ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY");
         database.execute("ALTER TABLE subscription_decisions ENABLE ROW LEVEL SECURITY");
+        database.execute("ALTER TABLE category_rules ENABLE ROW LEVEL SECURITY");
     }
 }

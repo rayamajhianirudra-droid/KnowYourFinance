@@ -54,6 +54,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      */
     List<Transaction> findByUserId(Long userId);
 
+    List<Transaction> findByUserIdAndSplitGroup(Long userId, String splitGroup);
+
     /**
      * Same idea, but also filtering by INCOME vs EXPENSE. Useful for
      * "total income this month" vs "total expenses this month" separately,

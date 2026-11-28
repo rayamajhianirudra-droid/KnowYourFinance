@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import TransactionList from '../components/TransactionList';
-vi.mock('../api', () => ({ listTransactions: vi.fn(), updateTransaction: vi.fn(), deleteTransaction: vi.fn() }));
+vi.mock('../api', () => ({ listTransactions: vi.fn(), updateTransaction: vi.fn(), deleteTransaction: vi.fn(), listRules: vi.fn(() => Promise.resolve([])), saveRule: vi.fn(), deleteRule: vi.fn(), joinSplit: vi.fn(), splitTransaction: vi.fn() }));
 import { listTransactions } from '../api';
 const rows = [
   { id: 1, date: '2026-11-15', description: 'Coffee, "large"', category: 'DINING', type: 'EXPENSE', amount: '4.50' },

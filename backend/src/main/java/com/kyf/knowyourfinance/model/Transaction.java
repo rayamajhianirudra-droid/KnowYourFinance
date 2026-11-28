@@ -130,6 +130,20 @@ public class Transaction {
     private Boolean lowConfidence = Boolean.FALSE;
 
     /**
+     * Set when this row is one part of a split receipt. All parts of one
+     * receipt share the same group id. Null for ordinary transactions.
+     */
+    @Column(length = 36)
+    private String splitGroup;
+
+    /** The description of the bank charge before it was split. */
+    private String splitSourceDescription;
+
+    /** The full amount of the bank charge before it was split. */
+    @Column(precision = 19, scale = 4)
+    private BigDecimal splitSourceAmount;
+
+    /**
      * JPA requires a no-argument constructor - it builds the object first
      * (blank), then fills in each field by calling the setters below.
      * We don't call this ourselves in normal code.
@@ -216,5 +230,29 @@ public class Transaction {
 
     public void setLowConfidence(boolean lowConfidence) {
         this.lowConfidence = lowConfidence;
+    }
+
+    public String getSplitGroup() {
+        return splitGroup;
+    }
+
+    public String getSplitSourceDescription() {
+        return splitSourceDescription;
+    }
+
+    public BigDecimal getSplitSourceAmount() {
+        return splitSourceAmount;
+    }
+
+    public void markAsSplitPart(String group, String sourceDescription, BigDecimal sourceAmount) {
+        this.splitGroup = group;
+        this.splitSourceDescription = sourceDescription;
+        this.splitSourceAmount = sourceAmount;
+    }
+
+    public void clearSplit() {
+        this.splitGroup = null;
+        this.splitSourceDescription = null;
+        this.splitSourceAmount = null;
     }
 }

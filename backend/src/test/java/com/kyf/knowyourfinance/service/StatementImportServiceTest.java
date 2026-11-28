@@ -4,6 +4,8 @@ import com.kyf.knowyourfinance.dto.StatementImportResponse;
 import com.kyf.knowyourfinance.model.Transaction;
 import com.kyf.knowyourfinance.model.TransactionCategory;
 import com.kyf.knowyourfinance.model.TransactionType;
+import com.kyf.knowyourfinance.model.CategoryRule;
+import com.kyf.knowyourfinance.repository.CategoryRuleRepository;
 import com.kyf.knowyourfinance.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,9 @@ class StatementImportServiceTest {
     @Mock
     private TransactionRepository transactionRepository;
 
+    @Mock
+    private CategoryRuleRepository categoryRuleRepository;
+
     private StatementImportService statementImportService;
 
     @BeforeEach
@@ -51,7 +56,7 @@ class StatementImportServiceTest {
         // just because this stub went unused.
         lenient().when(transactionRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         statementImportService = new StatementImportService(
-                new CsvStatementParser(), new AutoCategorizer(), transactionRepository);
+                new CsvStatementParser(), new AutoCategorizer(), transactionRepository, categoryRuleRepository);
     }
 
     private java.io.InputStream csv(String content) {
@@ -132,6 +137,62 @@ class StatementImportServiceTest {
         assertEquals(1, response.getDuplicatesSkipped());
         verify(transactionRepository, times(1)).saveAll(any());
         assertEquals(1, response.getTransactions().size());
+    }
+
+    @Test
+    void aReceiptThatWasSplitIsNotImportedAgainAsOneCharge() throws IOException {
+        String csvContent = """
+                Date,Description,Amount
+                2026-09-03,WALMART SUPERCENTER,-200.00
+                """;
+
+        // The user split this charge into food and a TV, so the database now
+        // holds two smaller rows that both remember the original charge.
+        Transaction food = new Transaction(LocalDate.of(2026, 9, 3), "WALMART SUPERCENTER - Food",
+                new BigDecimal("80.00"), TransactionType.EXPENSE, TransactionCategory.GROCERIES, 1L);
+        food.markAsSplitPart("g1", "WALMART SUPERCENTER", new BigDecimal("200.0000"));
+        Transaction tv = new Transaction(LocalDate.of(2026, 9, 3), "WALMART SUPERCENTER - TV",
+                new BigDecimal("120.00"), TransactionType.EXPENSE, TransactionCategory.SHOPPING, 1L);
+        tv.markAsSplitPart("g1", "WALMART SUPERCENTER", new BigDecimal("200.0000"));
+        when(transactionRepository.findByUserIdAndDateBetween(
+                eq(1L), eq(LocalDate.of(2026, 9, 3)), eq(LocalDate.of(2026, 9, 3))))
+                .thenReturn(List.of(food, tv));
+
+        StatementImportResponse response = statementImportService.importCsv(csv(csvContent), 1L);
+
+        assertEquals(0, response.getTransactionsSaved());
+        assertEquals(1, response.getDuplicatesSkipped());
+    }
+
+    @Test
+    void aSavedRuleBeatsTheBuiltInGuessAndIsNotFlaggedAsAGuess() throws IOException {
+        // The built-in list calls Walmart Groceries; this person wants Shopping.
+        when(categoryRuleRepository.findByUserIdOrderByPatternAsc(1L))
+                .thenReturn(List.of(new CategoryRule(1L, "walmart", TransactionCategory.SHOPPING)));
+
+        StatementImportResponse response = statementImportService.importCsv(csv("""
+                Date,Description,Amount
+                2026-09-03,WALMART SUPERCENTER,-42.10
+                2026-09-04,STARBUCKS #4521,-5.75
+                """), 1L);
+
+        Transaction walmart = response.getTransactions().get(0);
+        assertEquals(TransactionCategory.SHOPPING, walmart.getCategory());
+        assertFalse(walmart.isLowConfidence());
+        assertEquals(TransactionCategory.DINING, response.getTransactions().get(1).getCategory());
+    }
+
+    @Test
+    void aRuleAlsoFixesAMerchantTheBuiltInListDoesNotKnow() throws IOException {
+        when(categoryRuleRepository.findByUserIdOrderByPatternAsc(1L))
+                .thenReturn(List.of(new CategoryRule(1L, "joes pizza barn", TransactionCategory.ENTERTAINMENT)));
+
+        StatementImportResponse response = statementImportService.importCsv(csv("""
+                Date,Description,Amount
+                2026-09-03,JOES PIZZA BARN 22,-30.00
+                """), 1L);
+
+        assertEquals(TransactionCategory.ENTERTAINMENT, response.getTransactions().get(0).getCategory());
     }
 
     @Test
