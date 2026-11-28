@@ -41,6 +41,12 @@ public class BudgetController {
         spendingCategory(category);
         return service.save(userId, period, category, request.limitAmount());
     }
+    @DeleteMapping
+    public Map<String, Integer> clearMonth(@AuthenticationPrincipal AccountPrincipal account,
+                                           @RequestParam int year, @RequestParam int month) {
+        return Map.of("removed", service.clearMonth(account.ownerId(), period(year, month)));
+    }
+
     @DeleteMapping("/{category}")
     public ResponseEntity<Void> remove(@AuthenticationPrincipal AccountPrincipal account, @RequestParam int year, @RequestParam int month,
             @PathVariable TransactionCategory category) {

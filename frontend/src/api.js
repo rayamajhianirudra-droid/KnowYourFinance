@@ -308,6 +308,10 @@ export async function removeBudget(month, category) {
   return budgetResponse(await apiFetch(budgetUrl(month, category), { method: "DELETE" }));
 }
 
+export async function clearBudgetMonth(month) {
+  return budgetResponse(await apiFetch(budgetUrl(month), { method: "DELETE" }));
+}
+
 /**
  * How much data this person has stored, so the reset screen can say what
  * it is about to remove. Resolves to { transactions, budgets }.
