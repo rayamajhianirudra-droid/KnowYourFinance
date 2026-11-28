@@ -31,6 +31,10 @@ Then open http://localhost:3000. The web page and the API share that one address
 
 Stop the app with `docker compose down`. Your transactions stay in the `kyf-db-data` Docker volume and are there when you start it again. `docker compose down -v` also deletes the volume, which erases the data.
 
+#### Verification email
+
+Docker also starts [Mailpit](https://mailpit.axllent.org/), a local mail catcher, so the "verify your email" message works without sending real email: after signing up, open **http://localhost:8025** to read the verification email and follow its link. Nothing leaves your machine, and an unverified account is never blocked - it just sees a reminder. For a real deployment, point `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT` and `KYF_MAIL_FROM` at an SMTP server and set `KYF_APP_URL` to the address people reach the app at; see `.env.example`.
+
 ### Option 2: run the pieces directly
 
 The backend has no built-in database address or login, so all three of these variables must be set in your shell before it will start: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`. For the hosted Supabase database, copy the values from the Session Pooler connection details in the Supabase dashboard (Project Settings > Database > Connection Pooling); `.env.example` shows the expected format. Running the backend this way does not read the `.env` file by itself. Then:

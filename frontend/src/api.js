@@ -41,6 +41,30 @@ export async function signOutAccount() {
   if (!response.ok && response.status !== 401) throw new Error("Could not sign out. Try again.");
 }
 
+/** Confirms an email address from the one-time link opened from the inbox. */
+export async function verifyEmail(token) {
+  const response = await apiFetch(`${API_BASE}/auth/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  }, { notifyExpiry: false });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message || "Could not verify your email. Try again.");
+  }
+  return response.json();
+}
+
+/** Sends a fresh verification link to the signed-in account's email. */
+export async function resendVerification() {
+  const response = await apiFetch(`${API_BASE}/auth/resend-verification`, { method: "POST" });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message || "Could not resend the verification email. Try again.");
+  }
+  return response.json();
+}
+
 /**
  * Uploads a statement CSV file. Returns the backend's
  * StatementImportResponse: how many rows were parsed/saved/redacted,

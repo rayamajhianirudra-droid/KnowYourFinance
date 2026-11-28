@@ -7,6 +7,7 @@ import Dashboard from "./components/Dashboard";
 import TransactionList from "./components/TransactionList";
 import ManualEntry from "./components/ManualEntry";
 import ProfileBadge from "./components/ProfileBadge";
+import VerifyEmailBanner from "./components/VerifyEmailBanner";
 import ThemeToggle from "./components/ThemeToggle";
 import ResetDataDialog from "./components/ResetDataDialog";
 import YourData from "./components/YourData";
@@ -169,6 +170,9 @@ function FinanceApp({ account, signOut, pending, error }) {
 
       <main id="main" ref={mainRef} tabIndex={-1} className="site-main">
         <div className="content-container">
+          {account && account.emailVerified === false && (
+            <VerifyEmailBanner email={account.email} />
+          )}
           {flash && (
             <p className="notice" role="status">{flash}</p>
           )}

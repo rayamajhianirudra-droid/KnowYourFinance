@@ -39,7 +39,8 @@ public class SecurityConfiguration {
                 .csrf(config -> config.csrfTokenRepository(csrfTokens))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/health", "/api/auth/csrf").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/signin").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/signin",
+                                "/api/auth/verify-email").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors.authenticationEntryPoint((request, response, failure) ->
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED)))

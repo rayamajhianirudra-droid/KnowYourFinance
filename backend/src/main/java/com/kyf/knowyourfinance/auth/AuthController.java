@@ -34,11 +34,13 @@ public class AuthController {
     private final CsrfTokenRepository csrfTokens;
     private final CredentialRateLimiter rateLimiter;
     private final DataResetService dataReset;
+    private final EmailVerificationService emailVerification;
     private final String dummyHash;
 
     AuthController(AccountRepository accounts, PasswordEncoder passwords, AccountRegistration registration,
                    HttpSessionSecurityContextRepository sessions, CsrfTokenRepository csrfTokens,
-                   CredentialRateLimiter rateLimiter, DataResetService dataReset) {
+                   CredentialRateLimiter rateLimiter, DataResetService dataReset,
+                   EmailVerificationService emailVerification) {
         this.accounts = accounts;
         this.passwords = passwords;
         this.registration = registration;
@@ -46,6 +48,7 @@ public class AuthController {
         this.csrfTokens = csrfTokens;
         this.rateLimiter = rateLimiter;
         this.dataReset = dataReset;
+        this.emailVerification = emailVerification;
         dummyHash = passwords.encode(java.util.UUID.randomUUID().toString());
     }
 
@@ -56,7 +59,8 @@ public class AuthController {
 
     @GetMapping("/session")
     public SessionView session(@AuthenticationPrincipal AccountPrincipal principal) {
-        return new SessionView(principal.email());
+        boolean verified = accounts.findByEmail(principal.email()).map(Account::emailVerified).orElse(true);
+        return new SessionView(principal.email(), verified);
     }
 
     @PostMapping("/signup")
@@ -69,10 +73,40 @@ public class AuthController {
         }
         try {
             Account account = registration.register(credentials.normalizedEmail(), credentials.password());
+            emailVerification.issueFor(account);
             return authenticate(account, request, response);
         } catch (DataIntegrityViolationException duplicate) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Could not create this account.");
         }
+    }
+
+    /**
+     * POST /api/auth/verify-email - confirms an email address from the one-time
+     * link. Public (the person may not be signed in when they open the link)
+     * and rate limited. A missing, expired, or already-used token is refused
+     * with a generic message.
+     */
+    @PostMapping("/verify-email")
+    public MessageResponse verifyEmail(@Valid @RequestBody TokenRequest request, HttpServletRequest http) {
+        rateLimiter.check(http.getRemoteAddr());
+        if (!emailVerification.verify(request.token())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This verification link is invalid or has expired.");
+        }
+        return new MessageResponse("Your email is verified. Thank you.");
+    }
+
+    /**
+     * POST /api/auth/resend-verification - sends a fresh verification link to
+     * the signed-in account. Does nothing (but answers the same) when the email
+     * is already verified, so it never reveals more than the person's own state.
+     */
+    @PostMapping("/resend-verification")
+    public MessageResponse resendVerification(@AuthenticationPrincipal AccountPrincipal principal,
+                                              HttpServletRequest http) {
+        rateLimiter.check(http.getRemoteAddr());
+        accounts.findByEmail(principal.email()).ifPresent(emailVerification::issueFor);
+        return new MessageResponse("If your email still needs confirming, a new link is on its way.");
     }
 
     @PostMapping("/signin")
@@ -122,7 +156,7 @@ public class AuthController {
         context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of()));
         SecurityContextHolder.setContext(context);
         sessions.saveContext(context, request, response);
-        return new SessionView(account.email());
+        return new SessionView(account.email(), account.emailVerified());
     }
 
     private static void checkPasswordLength(String password) {
@@ -144,5 +178,9 @@ public class AuthController {
 
     public record PasswordConfirmation(@NotBlank @Size(max = 72) String password) {}
 
-    public record SessionView(String email) {}
+    public record TokenRequest(@NotBlank @Size(max = 512) String token) {}
+
+    public record MessageResponse(String message) {}
+
+    public record SessionView(String email, boolean emailVerified) {}
 }

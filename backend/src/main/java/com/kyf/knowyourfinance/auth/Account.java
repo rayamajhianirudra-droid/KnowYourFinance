@@ -15,6 +15,13 @@ public class Account {
     @Column(nullable = false, length = 100)
     private String passwordHash;
 
+    // Whether the person has confirmed this email address. The column defaults
+    // to true so accounts that existed before email verification are treated as
+    // already verified and never nagged; new accounts are created unverified
+    // (the field below starts false), so only they get a verification email.
+    @Column(name = "email_verified", nullable = false, columnDefinition = "boolean not null default true")
+    private boolean emailVerified = false;
+
     protected Account() {}
 
     Account(String email, String passwordHash) {
@@ -26,11 +33,23 @@ public class Account {
         return -id;
     }
 
+    Long id() {
+        return id;
+    }
+
     String email() {
         return email;
     }
 
     String passwordHash() {
         return passwordHash;
+    }
+
+    boolean emailVerified() {
+        return emailVerified;
+    }
+
+    void markEmailVerified() {
+        this.emailVerified = true;
     }
 }
